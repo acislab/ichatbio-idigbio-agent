@@ -28,7 +28,7 @@ class Existence(BaseModel):
 
 
 Date = Union[date, DateRange, Existence]
-String = Union[str, Existence]
+String = Union[str, List[str], Existence]
 Bool = Union[bool, Existence]
 Float = Union[float, Existence]
 Int = Union[int, Existence]
@@ -398,7 +398,7 @@ class IDBRecordsQuerySchema(BaseModel):
         None,
         description="Identifier for an iDigBio recordset (dataset) used to filter the query.",
     )
-    scientificname: Optional[Union[String, List[str]]] = Field(
+    scientificname: Optional[String] = Field(
         None,
         description="Full scientific name, including authorship, applied to the organism.",
     )
@@ -511,7 +511,7 @@ class IDigBioRecordsApiParameters(BaseModel):
     """
 
     rq: IDBRecordsQuerySchema = Field(
-        ..., description="Search criteria for species occurrence records in iDigBio"
+        description="Search criteria for species occurrence records in iDigBio"
     )
     limit: Optional[int] = Field(
         100, ge=1, le=5000, description="The maximum number of records to return"
@@ -523,8 +523,7 @@ class IDigBioSummaryApiParameters(BaseModel):
     This schema represents the output containing the LLM-generated iDigBio query.
     """
 
-    top_fields: Optional[str] = Field(
-        ...,
+    top_fields: str = Field(
         description="The field to break down record counts by. Defaults to "
         '"scientificname". For example, if top_fields is "country", '
         "the iDigBio API will find the 10 countries with the most records "
