@@ -9,7 +9,8 @@ from openai import AsyncOpenAI
 from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
-from schema import IDigBioMediaApiParameters
+from prompt import make_system_prompt
+from schema import IDigBioMediaApiParameters, IDBRecordsQuerySchema, IDBMediaQuerySchema
 from util import (
     AIGenerationException,
     StopOnTerminalErrorOrMaxAttempts,
@@ -177,14 +178,6 @@ Here is a description of how iDigBio queries are formatted:
 
 [END QUERY FORMAT DOC]
 
-# rq examples
-
-{rq_examples_doc}
-
-# mq examples
-
-{mq_examples_doc}
-
 """
 
 
@@ -194,19 +187,33 @@ def get_system_prompt():
         .joinpath("..", "resources", "records_query_format.md")
         .read_text()
     )
-    rq_examples_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "occurrence_records_examples.md")
-        .read_text()
-    )
-    mq_examples_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "media_records_examples.md")
-        .read_text()
-    )
 
-    return SYSTEM_PROMPT_TEMPLATE.format(
-        query_format_doc=query_format_doc,
-        rq_examples_doc=rq_examples_doc,
-        mq_examples_doc=mq_examples_doc,
-    ).strip()
+    examples = {
+        "Homo sapiens": LLMResponseModel(
+            plan="The request only specifies occurrence-related information, I will search using rq fields. The name doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
+            search_parameters=IDigBioMediaApiParameters(
+                rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
+            ),
+            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+        ),
+        "Audio of Homo sapiens": LLMResponseModel(
+            plan='To filter for audio media I need to use the mq field and search by mediatype. The mediatype for audio is "sounds". The request doesn\'t specify an authority for the name Homo sapiens, so I will search by genus and specificepithet instead of scientificname',
+            search_parameters=IDigBioMediaApiParameters(
+                rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens"),
+                mq=IDBMediaQuerySchema(mediatype="sounds"),
+            ),
+            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+        ),
+        "Pictures of Rattus rattus in Taiwan": LLMResponseModel(
+            plan='To filter for picture media I need to use the mq field and search by mediatype. The mediatype for pictures is "images". To filter by species, I need to use the rq field. The request doesn\'t specify an authority for the name Rattus rattus, so I will search by genus and specificepithet instead of scientificname',
+            search_parameters=IDigBioMediaApiParameters(
+                rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
+            ),
+            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+        ),
+    }
+
+    return make_system_prompt(
+        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
+        examples,
+    )
