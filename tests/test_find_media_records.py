@@ -1,15 +1,5 @@
-import dotenv
 import pytest
-import pytest_asyncio
 from ichatbio.agent_response import ArtifactResponse
-
-from src.agent import IDigBioAgent
-
-
-@pytest_asyncio.fixture()
-def agent():
-    dotenv.load_dotenv()
-    return IDigBioAgent()
 
 
 @pytest.mark.asyncio

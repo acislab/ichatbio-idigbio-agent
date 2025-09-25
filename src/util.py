@@ -2,12 +2,16 @@ import http.client
 import json
 from typing import Sized, Union, Type, Optional, Self
 
+import instructor
 import requests
+from instructor import AsyncInstructor
 from instructor.exceptions import InstructorRetryException
+from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic import Field
 from pydantic.functional_validators import model_validator
 from pydantic_core import ValidationError
+from tenacity import AsyncRetrying
 from tenacity import RetryCallState
 from tenacity.stop import stop_base
 
@@ -164,3 +168,25 @@ def make_llm_response_model(search_parameters_model: Type[BaseModel]):
             return self
 
     return LLMResponseModel
+
+
+async def generate_search_parameters(
+    request: str, system_prompt: str, llm_response_model: BaseModel
+) -> (str, BaseModel, str):
+
+    try:
+        client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
+        result = await client.chat.completions.create(
+            model="gpt-4.1-unfiltered",
+            temperature=0,
+            response_model=llm_response_model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": request},
+            ],
+            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
+        )
+    except InstructorRetryException as e:
+        raise AIGenerationException(e)
+
+    return result.plan, result.search_parameters, result.artifact_description

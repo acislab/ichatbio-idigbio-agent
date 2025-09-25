@@ -1,21 +1,15 @@
 import http.client
 import importlib.resources
 
-import instructor
 import requests
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
-from instructor import AsyncInstructor
-from instructor.exceptions import InstructorRetryException
-from openai import AsyncOpenAI
-from tenacity import AsyncRetrying
 
 import util
 from prompt import make_system_prompt
 from schema import IDigBioSummaryApiParameters, IDBRecordsQuerySchema
 from util import (
     AIGenerationException,
-    StopOnTerminalErrorOrMaxAttempts,
     make_llm_response_model,
 )
 
@@ -48,14 +42,17 @@ MAX_COUNT_TO_SHOW = 25
 MAX_COUNT = 5000
 
 
+LLMResponseModel = make_llm_response_model(IDigBioSummaryApiParameters)
+
+
 async def run(context: ResponseContext, request: str):
     async with context.begin_process("Requesting iDigBio statistics") as process:
         process: IChatBioAgentProcess
 
         await process.log("Generating search parameters for species occurrences")
         try:
-            plan, params, artifact_description = (
-                await _generate_records_summary_parameters(request)
+            plan, params, artifact_description = await util.generate_search_parameters(
+                request, get_system_prompt(), LLMResponseModel
             )
         except AIGenerationException as e:
             await process.log(e.message)
@@ -70,7 +67,7 @@ async def run(context: ResponseContext, request: str):
         # Call the API
 
         json_params = params.model_dump(exclude_none=True, by_alias=True)
-        top_fields = params.top_fields
+        top_fields = remap_top_fields(params.top_fields)
 
         await process.log(f"Generated search parameters", data=json_params)
 
@@ -154,8 +151,6 @@ def _query_summary_api(query_url: str) -> (int, dict):
     return code, response.ok, item_count, response.json()
 
 
-LLMResponseModel = make_llm_response_model(IDigBioSummaryApiParameters)
-
 FIELD_REPLACEMENTS = {
     "collector": "collector.keyword",
     "locality": "locality.keyword",
@@ -163,37 +158,15 @@ FIELD_REPLACEMENTS = {
 }
 
 
-async def _generate_records_summary_parameters(
-    request: str,
-) -> (IDigBioSummaryApiParameters, str):
-    try:
-        client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
-        result = await client.chat.completions.create(
-            model="gpt-4.1-unfiltered",
-            temperature=0,
-            response_model=LLMResponseModel,
-            messages=[
-                {"role": "system", "content": get_system_prompt()},
-                {"role": "user", "content": request},
-            ],
-            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
-        )
-    except InstructorRetryException as e:
-        raise AIGenerationException(e)
-
+def remap_top_fields(top_fields):
     # Some fields are indexed by word instead of full text. This is not useful for many fields. Use the
     # keyword versions of these fields instead.
-    top_fields = result.search_parameters.top_fields
     if type(top_fields) is str:
-        result.search_parameters.top_fields = FIELD_REPLACEMENTS.get(
-            top_fields, top_fields
-        )
+        top_fields = FIELD_REPLACEMENTS.get(top_fields, top_fields)
     elif type(top_fields) is list:
-        result.search_parameters.top_fields = [
-            FIELD_REPLACEMENTS.get(field, field) for field in top_fields
-        ]
+        top_fields = [FIELD_REPLACEMENTS.get(field, field) for field in top_fields]
 
-    return result.plan, result.search_parameters, result.artifact_description
+    return top_fields
 
 
 SYSTEM_PROMPT_TEMPLATE = """\

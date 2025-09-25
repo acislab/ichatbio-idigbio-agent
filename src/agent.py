@@ -7,7 +7,7 @@ from ichatbio.types import AgentCard
 from pydantic import BaseModel
 from starlette.applications import Starlette
 
-from .entrypoints import (
+from entrypoints import (
     find_occurrence_records,
     find_media_records,
     count_occurrence_records,

@@ -1,13 +1,8 @@
 import functools
 import importlib.resources
 
-import instructor
 from ichatbio.agent_response import IChatBioAgentProcess, ResponseContext
 from ichatbio.types import AgentEntrypoint
-from instructor import AsyncInstructor
-from instructor.exceptions import InstructorRetryException
-from openai import AsyncOpenAI
-from tenacity import AsyncRetrying
 
 from prompt import make_system_prompt
 from schema import IDBRecordsQuerySchema, IDigBioRecordsApiParameters
@@ -16,7 +11,7 @@ from util import (
     make_idigbio_api_url,
     make_idigbio_portal_url,
     AIGenerationException,
-    StopOnTerminalErrorOrMaxAttempts,
+    generate_search_parameters,
     make_llm_response_model,
 )
 
@@ -32,6 +27,8 @@ entrypoint = AgentEntrypoint(
     id="find_occurrence_records", description=description, parameters=None
 )
 
+LLMResponseModel = make_llm_response_model(IDigBioRecordsApiParameters)
+
 
 async def run(context: ResponseContext, request: str):
     """
@@ -46,8 +43,8 @@ async def run(context: ResponseContext, request: str):
             "Generating search parameters for iDigBio's occurrence records API"
         )
         try:
-            plan, params, artifact_description = (
-                await _generate_records_search_parameters(request)
+            plan, params, artifact_description = await generate_search_parameters(
+                request, get_system_prompt(), LLMResponseModel
             )
         except AIGenerationException as e:
             await process.log(e.message)
@@ -59,15 +56,16 @@ async def run(context: ResponseContext, request: str):
             )
             return
 
-        await process.log(f"Generated search parameters", data=params)
+        json_params = params.model_dump(exclude_none=True, by_alias=True)
+        await process.log(f"Generated search parameters", data=json_params)
 
-        api_query_url = make_idigbio_api_url("/v2/search/records", params)
+        api_query_url = make_idigbio_api_url("/v2/search/records", json_params)
         await process.log(
             f"Sending a POST request to the iDigBio occurrence records API at {api_query_url}"
         )
 
         response_code, success, response_data = query_idigbio_api(
-            "/v2/search/records", params
+            "/v2/search/records", json_params
         )
 
         if success:
@@ -84,7 +82,7 @@ async def run(context: ResponseContext, request: str):
             f" {api_query_url}"
         )
 
-        portal_url = make_idigbio_portal_url(params)
+        portal_url = make_idigbio_portal_url(json_params)
         await process.log(
             f"[View {record_count} out of {matching_count} matching records]({api_query_url})"
             f" | [Show in iDigBio portal]({portal_url})"
@@ -107,33 +105,6 @@ async def run(context: ResponseContext, request: str):
                     "total_matching_count": matching_count,
                 },
             )
-
-
-LLMResponseModel = make_llm_response_model(IDigBioRecordsApiParameters)
-
-
-async def _generate_records_search_parameters(request: str) -> (dict, str):
-    try:
-        client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
-        result = await client.chat.completions.create(
-            model="gpt-4.1-unfiltered",
-            temperature=0,
-            response_model=LLMResponseModel,
-            messages=[
-                {"role": "system", "content": get_system_prompt()},
-                {"role": "user", "content": request},
-            ],
-            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
-        )
-    except InstructorRetryException as e:
-        raise AIGenerationException(e)
-
-    generation = result.model_dump(exclude_none=True, by_alias=True)
-    return (
-        generation.get("plan"),
-        generation.get("search_parameters"),
-        generation.get("artifact_description"),
-    )
 
 
 SYSTEM_PROMPT_TEMPLATE = """
