@@ -200,7 +200,7 @@ def get_system_prompt():
             search_parameters=IDigBioMediaApiParameters(
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
-            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            artifact_description="Occurrence records for the species Homo sapiens",
             search_parameters_fully_match_the_request=True,
         ),
         "Audio of Homo sapiens": LLMResponseModel(
@@ -209,7 +209,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens"),
                 mq=IDBMediaQuerySchema(mediatype="sounds"),
             ),
-            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            artifact_description="Occurrence records for the species Homo sapiens",
             search_parameters_fully_match_the_request=True,
         ),
         "Pictures of Rattus rattus in Taiwan": LLMResponseModel(
@@ -217,7 +217,7 @@ def get_system_prompt():
             search_parameters=IDigBioMediaApiParameters(
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
-            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            artifact_description="Occurrence records for the species Homo sapiens",
             search_parameters_fully_match_the_request=True,
         ),
         "Blurry images in Canada": LLMResponseModel.model_construct(

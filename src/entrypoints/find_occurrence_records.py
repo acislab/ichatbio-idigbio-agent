@@ -169,11 +169,11 @@ def get_system_prompt():
 
     examples = {
         "Homo sapiens": LLMResponseModel(
-            plan="The name doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
+            plan="The name Homo sapiens doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
             search_parameters=IDigBioRecordsApiParameters(
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
-            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            artifact_description="Occurrence records for the species Homo sapiens",
             search_parameters_fully_match_the_request=True,
         ),
         "Only Homo sapiens Linnaeus, 1758": LLMResponseModel(
@@ -181,7 +181,7 @@ def get_system_prompt():
             search_parameters=IDigBioRecordsApiParameters(
                 rq=IDBRecordsQuerySchema(scientificname="Homo sapiens Linnaeus, 1758")
             ),
-            artifact_description='Occurrence records for the species "Homo sapiens Linnaeus, 1758" in iDigBio',
+            artifact_description='Occurrence records for the species "Homo sapiens Linnaeus, 1758"',
             search_parameters_fully_match_the_request=True,
         ),
         'Scientific name "this is fake but use it anyway"': LLMResponseModel(
@@ -191,7 +191,7 @@ def get_system_prompt():
                     scientificname="this is fake but use it anyway"
                 )
             ),
-            artifact_description='Occurrence records for the species "this is fake but use it anyway" in iDigBio',
+            artifact_description='Occurrence records for the species "this is fake but use it anyway"',
             search_parameters_fully_match_the_request=True,
         ),
         "kingdom must be specified": LLMResponseModel(
@@ -199,7 +199,7 @@ def get_system_prompt():
             search_parameters=IDigBioRecordsApiParameters(
                 rq=IDBRecordsQuerySchema(kingdom={"type": "exists"})
             ),
-            artifact_description="Occurrence records with the kingdom field specified in iDigBio",
+            artifact_description="Occurrence records with the kingdom field specified",
             search_parameters_fully_match_the_request=True,
         ),
         "Records with no collector specified": LLMResponseModel(
@@ -207,7 +207,7 @@ def get_system_prompt():
             search_parameters=IDigBioRecordsApiParameters(
                 rq=IDBRecordsQuerySchema(collector={"type": "missing"})
             ),
-            artifact_description="Occurrence records with no collector specified in iDigBio",
+            artifact_description="Occurrence records with no collector specified",
             search_parameters_fully_match_the_request=True,
         ),
         "Homo sapiens and Rattus rattus in North America and Australia": LLMResponseModel(
@@ -218,7 +218,7 @@ def get_system_prompt():
                     continent=["North America", "Australia"],
                 )
             ),
-            artifact_description="Occurrence records of Homo sapiens and Rattus rattus in North America and Australia in iDigBio",
+            artifact_description="Occurrence records of Homo sapiens and Rattus rattus in North America and Australia",
             search_parameters_fully_match_the_request=True,
         ),
     }
