@@ -1,6 +1,5 @@
 import functools
 import importlib.resources
-from typing import Optional
 
 import instructor
 from ichatbio.agent_response import IChatBioAgentProcess, ResponseContext
@@ -8,7 +7,6 @@ from ichatbio.types import AgentEntrypoint
 from instructor import AsyncInstructor
 from instructor.exceptions import InstructorRetryException
 from openai import AsyncOpenAI
-from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
 from prompt import make_system_prompt
@@ -19,6 +17,7 @@ from util import (
     make_idigbio_portal_url,
     AIGenerationException,
     StopOnTerminalErrorOrMaxAttempts,
+    make_llm_response_model,
 )
 
 # This description helps iChatBio understand when to call this entrypoint
@@ -110,18 +109,7 @@ async def run(context: ResponseContext, request: str):
             )
 
 
-class LLMResponseModel(BaseModel):
-    plan: str = Field(
-        description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
-    )
-    search_parameters: Optional[IDigBioRecordsApiParameters] = Field(
-        None,
-        description="The search parameters to use to produce the requested records. If you are unable to fulfill the user's request using the available API parameters, leave this field unset to abort.",
-    )
-    artifact_description: Optional[str] = Field(
-        None,
-        description="A concise characterization of the retrieved occurrence record data, if any.",
-    )
+LLMResponseModel = make_llm_response_model(IDigBioRecordsApiParameters)
 
 
 async def _generate_records_search_parameters(request: str) -> (dict, str):
@@ -166,6 +154,8 @@ Here is a description of how iDigBio queries are formatted:
 - Searching by lists performs an OR operation. For example, a search for "genus":["Ursus","Puffinus"] will return Ursus
 records and ALSO Puffinus records, it will NOT return co-occurrences of Ursus and Puffinus.
 
+- The iDigBio API can NOT perform searches that relate records to each other. For example, it cannot retrieve records that are near other records unless the locations of those records can be specified as search parameters.
+
 """
 
 
@@ -184,6 +174,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
             artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
         "Only Homo sapiens Linnaeus, 1758": LLMResponseModel(
             plan="The name name includes authority information, so I will search by scientificname",
@@ -191,6 +182,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(scientificname="Homo sapiens Linnaeus, 1758")
             ),
             artifact_description='Occurrence records for the species "Homo sapiens Linnaeus, 1758" in iDigBio',
+            search_parameters_fully_match_the_request=True,
         ),
         'Scientific name "this is fake but use it anyway"': LLMResponseModel(
             plan="The request placed a scientific name in quotes, so I will search by scientificname for an exact match",
@@ -200,6 +192,7 @@ def get_system_prompt():
                 )
             ),
             artifact_description='Occurrence records for the species "this is fake but use it anyway" in iDigBio',
+            search_parameters_fully_match_the_request=True,
         ),
         "kingdom must be specified": LLMResponseModel(
             plan='To find records that have the kingdom field, I need to search by kingdom for {"type": "exists"}',
@@ -207,6 +200,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(kingdom={"type": "exists"})
             ),
             artifact_description="Occurrence records with the kingdom field specified in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
         "Records with no collector specified": LLMResponseModel(
             plan='To find records with no collector field, I need to search by collector for {"type": "missing"}',
@@ -214,6 +208,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(collector={"type": "missing"})
             ),
             artifact_description="Occurrence records with no collector specified in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
         "Homo sapiens and Rattus rattus in North America and Australia": LLMResponseModel(
             plan="The request concerns two species (Homo sapiens and Rattus rattus) in two continents (North America and Australia), so I wlll search using the scientificnmae and continent fields, specifying the search values using list syntax.",
@@ -224,6 +219,7 @@ def get_system_prompt():
                 )
             ),
             artifact_description="Occurrence records of Homo sapiens and Rattus rattus in North America and Australia in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
     }
 

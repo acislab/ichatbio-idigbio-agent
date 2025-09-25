@@ -1,9 +1,12 @@
 import http.client
 import json
-from typing import Sized, Union
+from typing import Sized, Union, Type, Optional, Self
 
 import requests
 from instructor.exceptions import InstructorRetryException
+from pydantic import BaseModel
+from pydantic import Field
+from pydantic.functional_validators import model_validator
 from pydantic_core import ValidationError
 from tenacity import RetryCallState
 from tenacity.stop import stop_base
@@ -129,3 +132,35 @@ def make_idigbio_api_url(endpoint: str, params: dict = None) -> str:
 def make_idigbio_download_url(params: dict = None):
     url_params = "" if params is None else "?" + url_encode_params(params)
     return f"https://api.idigbio.org/v2/download{url_params}"
+
+
+def make_llm_response_model(search_parameters_model: Type[BaseModel]):
+    class LLMResponseModel(BaseModel):
+        plan: str = Field(
+            description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
+        )
+        search_parameters: Optional[search_parameters_model] = Field(
+            None,
+            description="The search parameters to use to produce the requested media records. If you are unable to fulfill the user's request using the available API parameters, leave this field unset to abort.",
+        )
+        artifact_description: Optional[str] = Field(
+            None,
+            description="A concise characterization of the retrieved occurrence record data, if any.",
+        )
+        search_parameters_fully_match_the_request: bool = Field(
+            description="Whether or not the chosen search_parameters completely fulfill the request. It is unacceptable for the search parameters to only partially match the request.",
+        )
+
+        @model_validator(mode="after")
+        def validate_model(self) -> Self:
+            if (
+                self.search_parameters is not None
+                and not self.search_parameters_fully_match_the_request
+            ):
+                raise ValueError(
+                    "The selected search parameters do not fully match the request. Either try again or abort."
+                )
+
+            return self
+
+    return LLMResponseModel

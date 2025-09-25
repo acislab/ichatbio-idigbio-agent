@@ -31,7 +31,7 @@ async def test_abort_on_unsupported_proximity_search(agent, context, messages):
     await agent.run(
         context,
         "Find media for Rattus rattus occurrences near Naja naja occurrences",
-        "find_occurrence_records",
+        "find_media_records",
         None,
     )
 
@@ -43,7 +43,7 @@ async def test_abort_on_unsupported_semantics_search(agent, context, messages):
     await agent.run(
         context,
         "Find pictures of blue butterflies",
-        "find_occurrence_records",
+        "find_media_records",
         None,
     )
 

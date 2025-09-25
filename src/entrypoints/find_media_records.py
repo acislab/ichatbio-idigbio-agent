@@ -1,5 +1,4 @@
 import importlib.resources
-from typing import Optional
 
 import instructor
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
@@ -7,7 +6,6 @@ from ichatbio.types import AgentEntrypoint
 from instructor import AsyncInstructor
 from instructor.exceptions import InstructorRetryException
 from openai import AsyncOpenAI
-from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
 from prompt import make_system_prompt
@@ -17,6 +15,7 @@ from util import (
     StopOnTerminalErrorOrMaxAttempts,
     query_idigbio_api,
     make_idigbio_api_url,
+    make_llm_response_model,
 )
 
 # This description helps iChatBio understand when to call this entrypoint
@@ -122,18 +121,7 @@ async def run(context: ResponseContext, request: str):
             )
 
 
-class LLMResponseModel(BaseModel):
-    plan: str = Field(
-        description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
-    )
-    search_parameters: Optional[IDigBioMediaApiParameters] = Field(
-        None,
-        description="The search parameters to use to produce the requested media records. If you are unable to fulfill the user's request using the available API parameters, leave this field unset to abort.",
-    )
-    artifact_description: Optional[str] = Field(
-        None,
-        description="A concise characterization of the retrieved occurrence record data, if any.",
-    )
+LLMResponseModel = make_llm_response_model(IDigBioMediaApiParameters)
 
 
 async def _generate_records_search_parameters(request: str) -> (dict, str):
@@ -213,6 +201,7 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
             artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
         "Audio of Homo sapiens": LLMResponseModel(
             plan='To filter for audio media I need to use the mq field and search by mediatype. The mediatype for audio is "sounds". The request doesn\'t specify an authority for the name Homo sapiens, so I will search by genus and specificepithet instead of scientificname',
@@ -221,6 +210,7 @@ def get_system_prompt():
                 mq=IDBMediaQuerySchema(mediatype="sounds"),
             ),
             artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
         "Pictures of Rattus rattus in Taiwan": LLMResponseModel(
             plan='To filter for picture media I need to use the mq field and search by mediatype. The mediatype for pictures is "images". To filter by species, I need to use the rq field. The request doesn\'t specify an authority for the name Rattus rattus, so I will search by genus and specificepithet instead of scientificname',
@@ -228,11 +218,13 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
             artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+            search_parameters_fully_match_the_request=True,
         ),
-        "Blurry images in Canada": LLMResponseModel(
+        "Blurry images in Canada": LLMResponseModel.model_construct(
             plan="There are no search parameters for image quality, so I should abort.",
             search_parameters=None,
             artifact_description=None,
+            search_parameters_fully_match_the_request=False,
         ),
     }
 
