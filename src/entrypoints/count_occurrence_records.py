@@ -37,8 +37,6 @@ entrypoint = AgentEntrypoint(
     id="count_occurrence_records", description=description, parameters=None
 )
 
-DEFAULT_COUNT_TO_SHOW = 10
-MAX_COUNT_TO_SHOW = 25
 MAX_COUNT = 5000
 
 
@@ -105,31 +103,12 @@ async def run(context: ResponseContext, request: str):
 
         if total_record_count > 0:
             if total_unique_count >= MAX_COUNT:
-                await context.reply(
+                await process.log(
                     f"Warning: Maximum count reached! iDigBio's Summary API can not return more than {MAX_COUNT} unique"
                     f" values. There are probably more than that. Consider narrowing your search parameters if you need"
                     f" exact counts."
                 )
 
-            # Show a preview of the top counts
-
-            if params.count is None:
-                preview_count = DEFAULT_COUNT_TO_SHOW
-            elif params.count > MAX_COUNT_TO_SHOW or params.count == 0:
-                preview_count = MAX_COUNT_TO_SHOW
-            else:
-                preview_count = params.count
-
-            top_field = [x for x in top_counts if x != "itemCount"][0]
-            counts_table = {
-                k: v["itemCount"]
-                for k, v in list(top_counts[top_field].items())[:preview_count]
-            }
-
-            await process.log(
-                f'Record counts for the top {preview_count} out of {total_unique_count} unique "{top_fields}" values',
-                data={"__table": counts_table},
-            )
             await process.create_artifact(
                 mimetype="application/json",
                 description=artifact_description,

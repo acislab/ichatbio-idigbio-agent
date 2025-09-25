@@ -25,8 +25,6 @@ entrypoint = AgentEntrypoint(
     id="find_media_records", description=description, parameters=None
 )
 
-NUM_PREVIEW_URLS = 5
-
 
 LLMResponseModel = make_llm_response_model(IDigBioMediaApiParameters)
 
@@ -83,18 +81,6 @@ async def run(context: ResponseContext, request: str):
         )
 
         if record_count > 0:
-            preview_items = [
-                item.get("indexTerms", {})
-                for item in response_data.get("items")
-                if item.get("indexTerms", {}).get("accessuri")
-            ][:NUM_PREVIEW_URLS]
-
-            if len(preview_items) > 0:
-                await process.log(
-                    f"Summary of first {len(preview_items)} media records:",
-                    data={"__table": _make_record_previews(preview_items)},
-                )
-
             await process.create_artifact(
                 mimetype="application/json",
                 description=artifact_description,
@@ -106,34 +92,11 @@ async def run(context: ResponseContext, request: str):
                 },
             )
             await context.reply(
-                "I showed the user an interactive media gallery that shows images matching the search parameters"
-                " above. Notes:\n"
-                "- To show the user images, you may use the access URLs above.\n"
-                "- To see more of the retrieved media URLs, you will have to extract them from the"
-                " artifact above.\n"
+                "Tips:\n"
+                "- Image URLs can be found in the artifact record data at indexterms.accessuri\n"
                 "- UUIDs for associated specimen/occurrence records in iDigBio are found in the artifact record data at"
                 " indexTerms.records"
             )
-        else:
-            await context.reply(
-                f"I didn't find any matching media records in iDigBio, so no images will be shown."
-            )
-
-
-def _make_record_previews(records) -> list[dict[str, str]]:
-    return [
-        {
-            "type": record.get("type"),
-            "format": record.get("format"),
-            "accessuri": record.get("accessuri"),
-            "Online view": (
-                f"[View in iDigBio](https://portal.idigbio.org/portal/mediarecords/{record["uuid"]})"
-                if "uuid" in record
-                else None
-            ),
-        }
-        for record in records
-    ]
 
 
 SYSTEM_PROMPT_TEMPLATE = """
