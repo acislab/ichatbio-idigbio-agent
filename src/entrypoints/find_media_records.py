@@ -1,4 +1,5 @@
 import importlib.resources
+from typing import Optional
 
 import instructor
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
@@ -45,11 +46,17 @@ async def run(context: ResponseContext, request: str):
             "Generating search parameters for the iDigBio's media records API"
         )
         try:
-            params, artifact_description = await _generate_records_search_parameters(
-                request
+            plan, params, artifact_description = (
+                await _generate_records_search_parameters(request)
             )
         except AIGenerationException as e:
             await process.log(e.message)
+            return
+
+        if params is None:
+            await process.log(
+                f"Failed to generate appropriate search parameters. Reason: {plan}"
+            )
             return
 
         await process.log(f"Generated search parameters", data=params)
@@ -117,15 +124,15 @@ async def run(context: ResponseContext, request: str):
 
 class LLMResponseModel(BaseModel):
     plan: str = Field(
-        description="A brief explanation of what API parameters you plan to use"
+        description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
     )
-    search_parameters: IDigBioMediaApiParameters = Field()
-    artifact_description: str = Field(
-        description="A concise characterization of the retrieved media record data",
-        examples=[
-            "Image media records of Rattus rattus",
-            "Media records modified in 2025",
-        ],
+    search_parameters: Optional[IDigBioMediaApiParameters] = Field(
+        None,
+        description="The search parameters to use to produce the requested media records. If you are unable to fulfill the user's request using the available API parameters, leave this field unset to abort.",
+    )
+    artifact_description: Optional[str] = Field(
+        None,
+        description="A concise characterization of the retrieved occurrence record data, if any.",
     )
 
 
@@ -146,7 +153,11 @@ async def _generate_records_search_parameters(request: str) -> (dict, str):
         raise AIGenerationException(e)
 
     generation = result.model_dump(exclude_none=True, by_alias=True)
-    return generation["search_parameters"], generation["artifact_description"]
+    return (
+        generation.get("plan"),
+        generation.get("search_parameters"),
+        generation.get("artifact_description"),
+    )
 
 
 def _make_record_previews(records) -> list[dict[str, str]]:
@@ -177,6 +188,13 @@ Here is a description of how iDigBio queries are formatted:
 {query_format_doc}
 
 [END QUERY FORMAT DOC]
+
+# Tips
+
+- Searching by lists performs an OR operation. For example, a search for "genus":["Ursus","Puffinus"] will return Ursus
+records and ALSO Puffinus records, it will NOT return co-occurrences of Ursus and Puffinus.
+
+- Do not choose search parameters that only partially fulfill the user's request. Instead, you should abort (don't set any search parameters) and explain why.
 
 """
 
@@ -210,6 +228,11 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
             artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+        ),
+        "Blurry images in Canada": LLMResponseModel(
+            plan="There are no search parameters for image quality, so I should abort.",
+            search_parameters=None,
+            artifact_description=None,
         ),
     }
 
