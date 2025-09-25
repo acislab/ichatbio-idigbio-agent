@@ -1,5 +1,6 @@
 import functools
 import importlib.resources
+from typing import Optional
 
 import instructor
 from ichatbio.agent_response import IChatBioAgentProcess, ResponseContext
@@ -46,11 +47,17 @@ async def run(context: ResponseContext, request: str):
             "Generating search parameters for iDigBio's occurrence records API"
         )
         try:
-            params, artifact_description = await _generate_records_search_parameters(
-                request
+            plan, params, artifact_description = (
+                await _generate_records_search_parameters(request)
             )
         except AIGenerationException as e:
             await process.log(e.message)
+            return
+
+        if params is None:
+            await process.log(
+                f"Failed to generate appropriate search parameters. Reason: {plan}"
+            )
             return
 
         await process.log(f"Generated search parameters", data=params)
@@ -105,15 +112,15 @@ async def run(context: ResponseContext, request: str):
 
 class LLMResponseModel(BaseModel):
     plan: str = Field(
-        description="A brief explanation of what API parameters you plan to use"
+        description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
     )
-    search_parameters: IDigBioRecordsApiParameters = Field()
-    artifact_description: str = Field(
-        description="A concise characterization of the retrieved occurrence record data",
-        examples=[
-            "Occurrence records of Rattus rattus",
-            "Occurrence records modified in 2025",
-        ],
+    search_parameters: Optional[IDigBioRecordsApiParameters] = Field(
+        None,
+        description="The search parameters to use to produce the requested records. If you are unable to fulfill the user's request using the available API parameters, leave this field unset to abort.",
+    )
+    artifact_description: Optional[str] = Field(
+        None,
+        description="A concise characterization of the retrieved occurrence record data, if any.",
     )
 
 
@@ -134,7 +141,11 @@ async def _generate_records_search_parameters(request: str) -> (dict, str):
         raise AIGenerationException(e)
 
     generation = result.model_dump(exclude_none=True, by_alias=True)
-    return generation["search_parameters"], generation["artifact_description"]
+    return (
+        generation.get("plan"),
+        generation.get("search_parameters"),
+        generation.get("artifact_description"),
+    )
 
 
 SYSTEM_PROMPT_TEMPLATE = """
@@ -149,6 +160,12 @@ Here is a description of how iDigBio queries are formatted:
 {query_format_doc}
 
 [END QUERY FORMAT DOC]
+
+# Tips
+
+- Searching by lists performs an OR operation. For example, a search for "genus":["Ursus","Puffinus"] will return Ursus
+records and ALSO Puffinus records, it will NOT return co-occurrences of Ursus and Puffinus.
+
 """
 
 
