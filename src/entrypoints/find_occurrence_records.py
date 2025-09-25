@@ -1,3 +1,4 @@
+import functools
 import importlib.resources
 
 import instructor
@@ -9,8 +10,9 @@ from openai import AsyncOpenAI
 from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
-from ..schema import IDigBioRecordsApiParameters
-from ..util import (
+from prompt import make_system_prompt
+from schema import IDBRecordsQuerySchema, IDigBioRecordsApiParameters
+from util import (
     query_idigbio_api,
     make_idigbio_api_url,
     make_idigbio_portal_url,
@@ -147,25 +149,68 @@ Here is a description of how iDigBio queries are formatted:
 {query_format_doc}
 
 [END QUERY FORMAT DOC]
-
-# Examples
-
-{examples_doc}
 """
 
 
+@functools.cache
 def get_system_prompt():
     query_format_doc = (
         importlib.resources.files()
         .joinpath("..", "resources", "records_query_format.md")
         .read_text()
     )
-    examples_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "occurrence_records_examples.md")
-        .read_text()
-    )
 
-    return SYSTEM_PROMPT_TEMPLATE.format(
-        query_format_doc=query_format_doc, examples_doc=examples_doc
-    ).strip()
+    examples = {
+        "Homo sapiens": LLMResponseModel(
+            plan="The name doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
+            ),
+            artifact_description="Occurrence records for the species Homo sapiens in iDigBio",
+        ),
+        "Only Homo sapiens Linnaeus, 1758": LLMResponseModel(
+            plan="The name name includes authority information, so I will search by scientificname",
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(scientificname="Homo sapiens Linnaeus, 1758")
+            ),
+            artifact_description='Occurrence records for the species "Homo sapiens Linnaeus, 1758" in iDigBio',
+        ),
+        'Scientific name "this is fake but use it anyway"': LLMResponseModel(
+            plan="The request placed a scientific name in quotes, so I will search by scientificname for an exact match",
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(
+                    scientificname="this is fake but use it anyway"
+                )
+            ),
+            artifact_description='Occurrence records for the species "this is fake but use it anyway" in iDigBio',
+        ),
+        "kingdom must be specified": LLMResponseModel(
+            plan='To find records that have the kingdom field, I need to search by kingdom for {"type": "exists"}',
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(kingdom={"type": "exists"})
+            ),
+            artifact_description="Occurrence records with the kingdom field specified in iDigBio",
+        ),
+        "Records with no collector specified": LLMResponseModel(
+            plan='To find records with no collector field, I need to search by collector for {"type": "missing"}',
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(collector={"type": "missing"})
+            ),
+            artifact_description="Occurrence records with no collector specified in iDigBio",
+        ),
+        "Homo sapiens and Rattus rattus in North America and Australia": LLMResponseModel(
+            plan="The request concerns two species (Homo sapiens and Rattus rattus) in two continents (North America and Australia), so I wlll search using the scientificnmae and continent fields, specifying the search values using list syntax.",
+            search_parameters=IDigBioRecordsApiParameters(
+                rq=IDBRecordsQuerySchema(
+                    scientificname=["Homo sapiens", "Rattus rattus"],
+                    continent=["North America", "Australia"],
+                )
+            ),
+            artifact_description="Occurrence records of Homo sapiens and Rattus rattus in North America and Australia in iDigBio",
+        ),
+    }
+
+    return make_system_prompt(
+        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
+        examples,
+    )
