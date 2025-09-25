@@ -1,5 +1,6 @@
 from typing import override, Optional
 
+import dotenv
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
@@ -48,6 +49,7 @@ class IDigBioAgent(IChatBioAgent):
 
 
 def create_app() -> Starlette:
+    dotenv.load_dotenv()
     agent = IDigBioAgent()
     app = build_agent_app(agent)
     return app
