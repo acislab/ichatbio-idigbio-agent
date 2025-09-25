@@ -93,9 +93,10 @@ async def run(context: ResponseContext, request: str):
             )
             await context.reply(
                 "Tips:\n"
-                "- Image URLs can be found in the artifact record data at indexterms.accessuri\n"
+                "- Image URLs can be found in the artifact record data at items[].indexterms.accessuri\n"
                 "- UUIDs for associated specimen/occurrence records in iDigBio are found in the artifact record data at"
-                " indexTerms.records"
+                " items[].indexTerms.records"
+                "- The web pages for individual media records follow the pattern https://portal.idigbio.org/portal/mediarecords/[UUID] using the UUIDs found in the artifact record data at items[].uuid."
             )
 
 
