@@ -531,12 +531,10 @@ class IDigBioSummaryApiParameters(BaseModel):
         "specified.",
     )
     count: Optional[int] = Field(
-        10,
+        5000,
         gt=0,
         le=5000,
-        description="The maximum number of unique values to report record counts for. For "
-        'example, to find 10 number of species, set "count" to 10. Or to find '
-        "total number of unique species, use the maximum count allowed.",
+        description="The maximum number of unique values to report record counts for. Only use this field if explicitly requested.",
     )
     rq: Optional[IDBRecordsQuerySchema] = Field(
         None,

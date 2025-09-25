@@ -8,12 +8,16 @@ from ichatbio.types import AgentEntrypoint
 from instructor import AsyncInstructor
 from instructor.exceptions import InstructorRetryException
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field
 from tenacity import AsyncRetrying
 
 import util
-from schema import IDigBioSummaryApiParameters
-from util import AIGenerationException, StopOnTerminalErrorOrMaxAttempts
+from prompt import make_system_prompt
+from schema import IDigBioSummaryApiParameters, IDBRecordsQuerySchema
+from util import (
+    AIGenerationException,
+    StopOnTerminalErrorOrMaxAttempts,
+    make_llm_response_model,
+)
 
 description = """\
 Counts the total number of records in iDigBio matching the user's search criteria. Also breaks the count down by a 
@@ -50,11 +54,17 @@ async def run(context: ResponseContext, request: str):
 
         await process.log("Generating search parameters for species occurrences")
         try:
-            params, artifact_description = await _generate_records_summary_parameters(
-                request
+            plan, params, artifact_description = (
+                await _generate_records_summary_parameters(request)
             )
         except AIGenerationException as e:
             await process.log(e.message)
+            return
+
+        if params is None:
+            await process.log(
+                f"Failed to generate appropriate search parameters. Reason: {plan}"
+            )
             return
 
         # Call the API
@@ -144,19 +154,7 @@ def _query_summary_api(query_url: str) -> (int, dict):
     return code, response.ok, item_count, response.json()
 
 
-class LLMResponseModel(BaseModel):
-    plan: str = Field(
-        description="A brief explanation of what API parameters you plan to use"
-    )
-    search_parameters: IDigBioSummaryApiParameters = Field()
-    artifact_description: str = Field(
-        description="A concise characterization of the retrieved occurrence record statistics",
-        examples=[
-            "Per-country record counts for species Rattus rattus",
-            "Per-species record counts for records created in 2025",
-        ],
-    )
-
+LLMResponseModel = make_llm_response_model(IDigBioSummaryApiParameters)
 
 FIELD_REPLACEMENTS = {
     "collector": "collector.keyword",
@@ -195,7 +193,7 @@ async def _generate_records_summary_parameters(
             FIELD_REPLACEMENTS.get(field, field) for field in top_fields
         ]
 
-    return result.search_parameters, result.artifact_description
+    return result.plan, result.search_parameters, result.artifact_description
 
 
 SYSTEM_PROMPT_TEMPLATE = """\
@@ -211,23 +209,6 @@ Here is a description of how iDigBio queries are formatted:
 
 [END QUERY FORMAT DOC]
 
-# General rq object examples
-
-{examples_doc}
-
-# Full examples
-
-{specific_examples}
-"""
-
-SPECIFIC_EXAMPLES = """\
-## Example
-
-Request: "Count number of species of Aves"
-Response: {
-    "rq": {"class": "Aves", "taxonrank": "species"},
-    "top_fields": "scientificname"
-}
 """
 
 
@@ -237,14 +218,40 @@ def get_system_prompt():
         .joinpath("..", "resources", "records_query_format.md")
         .read_text()
     )
-    examples_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "occurrence_records_examples.md")
-        .read_text()
-    )
 
-    return SYSTEM_PROMPT_TEMPLATE.format(
-        query_format_doc=query_format_doc,
-        examples_doc=examples_doc,
-        specific_examples=SPECIFIC_EXAMPLES,
-    ).strip()
+    examples = {
+        "Number of species of Aves": LLMResponseModel(
+            plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique species in Aves, so I will use "scientificname" as top_fields. Becayse scientificname can also match ranks besides species, so I will also limit the taxonrank (the rank of the scientific name in each record) to species',
+            search_parameters=IDigBioSummaryApiParameters(
+                rq=IDBRecordsQuerySchema(class_="Aves", taxonrank="species"),
+                top_fields="scientificname",
+            ),
+            artifact_description="Per-species record counts for class Aves",
+            search_parameters_fully_match_the_request=True,
+        ),
+        "Number of families of Aves": LLMResponseModel(
+            plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique families in Aves, so I will use "families" as top_fields.',
+            search_parameters=IDigBioSummaryApiParameters(
+                rq=IDBRecordsQuerySchema(class_="Aves", taxonrank="species"),
+                top_fields="scientificname",
+            ),
+            artifact_description="Per-family record counts for class Aves",
+            search_parameters_fully_match_the_request=True,
+        ),
+        "Count Ursus arctos in each state in Australia": LLMResponseModel(
+            plan='The name Ursus arctos doesn\'t have authority specified, so I will search by genus and specificepithet instead of scientificname. I will limit the search to the country Australia and set top_fields to "stateprovince" to break down record counts by state.',
+            search_parameters=IDigBioSummaryApiParameters(
+                rq=IDBRecordsQuerySchema(
+                    genus="Ursus", specificepithet="arctos", country="Australia"
+                ),
+                top_fields="stateprovince",
+            ),
+            artifact_description="Per-state record counts for Ursus arctos in Australia",
+            search_parameters_fully_match_the_request=True,
+        ),
+    }
+
+    return make_system_prompt(
+        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
+        examples,
+    )
