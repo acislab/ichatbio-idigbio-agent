@@ -11,9 +11,9 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 from tenacity import AsyncRetrying
 
+import util
+from schema import IDigBioSummaryApiParameters
 from util import AIGenerationException, StopOnTerminalErrorOrMaxAttempts
-from .. import util
-from ..schema import IDigBioSummaryApiParameters
 
 description = """\
 Counts the total number of records in iDigBio matching the user's search criteria. Also breaks the count down by a 
@@ -36,9 +36,7 @@ Also returns the URL used to collect records counts from the iDigBio Summary API
 
 # This gets included in the agent card
 entrypoint = AgentEntrypoint(
-    id="count_occurrence_records",
-    description=description,
-    parameters=None
+    id="count_occurrence_records", description=description, parameters=None
 )
 
 DEFAULT_COUNT_TO_SHOW = 10
@@ -52,7 +50,9 @@ async def run(context: ResponseContext, request: str):
 
         await process.log("Generating search parameters for species occurrences")
         try:
-            params, artifact_description = await _generate_records_summary_parameters(request)
+            params, artifact_description = await _generate_records_summary_parameters(
+                request
+            )
         except AIGenerationException as e:
             await process.log(e.message)
             return
@@ -65,14 +65,20 @@ async def run(context: ResponseContext, request: str):
         await process.log(f"Generated search parameters", data=json_params)
 
         url_params = util.url_encode_params(json_params)
-        full_summary_api_url = f"https://search.idigbio.org/v2/summary/top/records?{url_params}"
+        full_summary_api_url = (
+            f"https://search.idigbio.org/v2/summary/top/records?{url_params}"
+        )
 
-        await process.log(f"Sending a GET request to the iDigBio records summary API at {full_summary_api_url}")
+        await process.log(
+            f"Sending a GET request to the iDigBio records summary API at {full_summary_api_url}"
+        )
 
         if params.count is None:
             params.count = 0
 
-        response_code, success, total_record_count, top_counts = _query_summary_api(full_summary_api_url)
+        response_code, success, total_record_count, top_counts = _query_summary_api(
+            full_summary_api_url
+        )
 
         if success:
             await process.log(f"Response code: {response_code}")
@@ -83,11 +89,11 @@ async def run(context: ResponseContext, request: str):
         total_unique_count = len(top_counts.get(top_fields, []))
 
         await context.reply(
-            f"The API query found {total_unique_count} unique \"{top_fields}\" values across {total_record_count}"
+            f'The API query found {total_unique_count} unique "{top_fields}" values across {total_record_count}'
             " matching records in iDigBio"
         )
         await process.log(
-            f"[View summary of {total_unique_count} unique \"{top_fields}\" values across {total_record_count} records]({full_summary_api_url})"
+            f'[View summary of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
         if total_record_count > 0:
@@ -108,11 +114,14 @@ async def run(context: ResponseContext, request: str):
                 preview_count = params.count
 
             top_field = [x for x in top_counts if x != "itemCount"][0]
-            counts_table = {k: v["itemCount"] for k, v in list(top_counts[top_field].items())[:preview_count]}
+            counts_table = {
+                k: v["itemCount"]
+                for k, v in list(top_counts[top_field].items())[:preview_count]
+            }
 
             await process.log(
-                f"Record counts for the top {preview_count} out of {total_unique_count} unique \"{top_fields}\" values",
-                data={"__table": counts_table}
+                f'Record counts for the top {preview_count} out of {total_unique_count} unique "{top_fields}" values',
+                data={"__table": counts_table},
             )
             await process.create_artifact(
                 mimetype="application/json",
@@ -121,35 +130,44 @@ async def run(context: ResponseContext, request: str):
                 metadata={
                     "data_source": "iDigBio",
                     "total_record_count": total_record_count,
-                    "total_unique_count": total_unique_count
-                }
+                    "total_unique_count": total_unique_count,
+                },
             )
 
 
 def _query_summary_api(query_url: str) -> (int, dict):
     response = requests.get(query_url)
     item_count = response.json()["itemCount"]
-    code = f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
+    code = (
+        f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
+    )
     return code, response.ok, item_count, response.json()
 
 
 class LLMResponseModel(BaseModel):
-    plan: str = Field(description="A brief explanation of what API parameters you plan to use")
+    plan: str = Field(
+        description="A brief explanation of what API parameters you plan to use"
+    )
     search_parameters: IDigBioSummaryApiParameters = Field()
     artifact_description: str = Field(
         description="A concise characterization of the retrieved occurrence record statistics",
-        examples=["Per-country record counts for species Rattus rattus",
-                  "Per-species record counts for records created in 2025"])
+        examples=[
+            "Per-country record counts for species Rattus rattus",
+            "Per-species record counts for records created in 2025",
+        ],
+    )
 
 
 FIELD_REPLACEMENTS = {
     "collector": "collector.keyword",
     "locality": "locality.keyword",
-    "highertaxon": "highertaxon.keyword"
+    "highertaxon": "highertaxon.keyword",
 }
 
 
-async def _generate_records_summary_parameters(request: str) -> (IDigBioSummaryApiParameters, str):
+async def _generate_records_summary_parameters(
+    request: str,
+) -> (IDigBioSummaryApiParameters, str):
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
         result = await client.chat.completions.create(
@@ -158,9 +176,9 @@ async def _generate_records_summary_parameters(request: str) -> (IDigBioSummaryA
             response_model=LLMResponseModel,
             messages=[
                 {"role": "system", "content": get_system_prompt()},
-                {"role": "user", "content": request}
+                {"role": "user", "content": request},
             ],
-            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3))
+            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
         )
     except InstructorRetryException as e:
         raise AIGenerationException(e)
@@ -169,9 +187,13 @@ async def _generate_records_summary_parameters(request: str) -> (IDigBioSummaryA
     # keyword versions of these fields instead.
     top_fields = result.search_parameters.top_fields
     if type(top_fields) is str:
-        result.search_parameters.top_fields = FIELD_REPLACEMENTS.get(top_fields, top_fields)
+        result.search_parameters.top_fields = FIELD_REPLACEMENTS.get(
+            top_fields, top_fields
+        )
     elif type(top_fields) is list:
-        result.search_parameters.top_fields = [FIELD_REPLACEMENTS.get(field, field) for field in top_fields]
+        result.search_parameters.top_fields = [
+            FIELD_REPLACEMENTS.get(field, field) for field in top_fields
+        ]
 
     return result.search_parameters, result.artifact_description
 
@@ -210,11 +232,19 @@ Response: {
 
 
 def get_system_prompt():
-    query_format_doc = importlib.resources.files().joinpath("..", "resources", "records_query_format.md").read_text()
-    examples_doc = importlib.resources.files().joinpath("..", "resources", "occurrence_records_examples.md").read_text()
+    query_format_doc = (
+        importlib.resources.files()
+        .joinpath("..", "resources", "records_query_format.md")
+        .read_text()
+    )
+    examples_doc = (
+        importlib.resources.files()
+        .joinpath("..", "resources", "occurrence_records_examples.md")
+        .read_text()
+    )
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         query_format_doc=query_format_doc,
         examples_doc=examples_doc,
-        specific_examples=SPECIFIC_EXAMPLES
+        specific_examples=SPECIFIC_EXAMPLES,
     ).strip()

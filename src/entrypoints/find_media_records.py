@@ -9,9 +9,13 @@ from openai import AsyncOpenAI
 from pydantic import Field, BaseModel
 from tenacity import AsyncRetrying
 
-from util import AIGenerationException, StopOnTerminalErrorOrMaxAttempts
-from ..schema import IDigBioMediaApiParameters
-from ..util import query_idigbio_api, make_idigbio_api_url
+from schema import IDigBioMediaApiParameters
+from util import (
+    AIGenerationException,
+    StopOnTerminalErrorOrMaxAttempts,
+    query_idigbio_api,
+    make_idigbio_api_url,
+)
 
 # This description helps iChatBio understand when to call this entrypoint
 description = """\
@@ -22,9 +26,7 @@ Portal. Also displays an interactive media gallery to the user.
 
 # This gets included in the agent card
 entrypoint = AgentEntrypoint(
-    id="find_media_records",
-    description=description,
-    parameters=None
+    id="find_media_records", description=description, parameters=None
 )
 
 NUM_PREVIEW_URLS = 5
@@ -38,9 +40,13 @@ async def run(context: ResponseContext, request: str):
     """
     async with context.begin_process("Searching iDigBio media records") as process:
         process: IChatBioAgentProcess
-        await process.log("Generating search parameters for the iDigBio's media records API")
+        await process.log(
+            "Generating search parameters for the iDigBio's media records API"
+        )
         try:
-            params, artifact_description = await _generate_records_search_parameters(request)
+            params, artifact_description = await _generate_records_search_parameters(
+                request
+            )
         except AIGenerationException as e:
             await process.log(e.message)
             return
@@ -48,9 +54,13 @@ async def run(context: ResponseContext, request: str):
         await process.log(f"Generated search parameters", data=params)
 
         api_query_url = make_idigbio_api_url("/v2/search/media", params)
-        await process.log(f"Sending a POST request to the iDigBio media records API at {api_query_url}")
+        await process.log(
+            f"Sending a POST request to the iDigBio media records API at {api_query_url}"
+        )
 
-        response_code, success, response_data = query_idigbio_api("/v2/search/media", params)
+        response_code, success, response_data = query_idigbio_api(
+            "/v2/search/media", params
+        )
 
         if success:
             await process.log(f"Response code: {response_code}")
@@ -67,14 +77,16 @@ async def run(context: ResponseContext, request: str):
         )
 
         if record_count > 0:
-            preview_items = [item.get("indexTerms", {})
-                             for item in response_data.get("items")
-                             if item.get("indexTerms", {}).get("accessuri")][:NUM_PREVIEW_URLS]
+            preview_items = [
+                item.get("indexTerms", {})
+                for item in response_data.get("items")
+                if item.get("indexTerms", {}).get("accessuri")
+            ][:NUM_PREVIEW_URLS]
 
             if len(preview_items) > 0:
                 await process.log(
                     f"Summary of first {len(preview_items)} media records:",
-                    data={"__table": _make_record_previews(preview_items)}
+                    data={"__table": _make_record_previews(preview_items)},
                 )
 
             await process.create_artifact(
@@ -84,8 +96,8 @@ async def run(context: ResponseContext, request: str):
                 metadata={
                     "data_source": "iDigBio",
                     "retrieved_record_count": record_count,
-                    "total_matching_count": matching_count
-                }
+                    "total_matching_count": matching_count,
+                },
             )
             await context.reply(
                 "I showed the user an interactive media gallery that shows images matching the search parameters"
@@ -97,16 +109,23 @@ async def run(context: ResponseContext, request: str):
                 " indexTerms.records"
             )
         else:
-            await context.reply(f"I didn't find any matching media records in iDigBio, so no images will be shown.")
+            await context.reply(
+                f"I didn't find any matching media records in iDigBio, so no images will be shown."
+            )
 
 
 class LLMResponseModel(BaseModel):
-    plan: str = Field(description="A brief explanation of what API parameters you plan to use")
+    plan: str = Field(
+        description="A brief explanation of what API parameters you plan to use"
+    )
     search_parameters: IDigBioMediaApiParameters = Field()
     artifact_description: str = Field(
         description="A concise characterization of the retrieved media record data",
-        examples=["Image media records of Rattus rattus",
-                  "Media records modified in 2025"])
+        examples=[
+            "Image media records of Rattus rattus",
+            "Media records modified in 2025",
+        ],
+    )
 
 
 async def _generate_records_search_parameters(request: str) -> (dict, str):
@@ -118,9 +137,9 @@ async def _generate_records_search_parameters(request: str) -> (dict, str):
             response_model=LLMResponseModel,
             messages=[
                 {"role": "system", "content": get_system_prompt()},
-                {"role": "user", "content": request}
+                {"role": "user", "content": request},
             ],
-            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3))
+            max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
         )
     except InstructorRetryException as e:
         raise AIGenerationException(e)
@@ -135,9 +154,13 @@ def _make_record_previews(records) -> list[dict[str, str]]:
             "type": record.get("type"),
             "format": record.get("format"),
             "accessuri": record.get("accessuri"),
-            "Online view": (f"[View in iDigBio](https://portal.idigbio.org/portal/mediarecords/{record["uuid"]})"
-                            if "uuid" in record else None)
-        } for record in records
+            "Online view": (
+                f"[View in iDigBio](https://portal.idigbio.org/portal/mediarecords/{record["uuid"]})"
+                if "uuid" in record
+                else None
+            ),
+        }
+        for record in records
     ]
 
 
@@ -166,13 +189,24 @@ Here is a description of how iDigBio queries are formatted:
 
 
 def get_system_prompt():
-    query_format_doc = importlib.resources.files().joinpath("..", "resources", "records_query_format.md").read_text()
-    rq_examples_doc = importlib.resources.files().joinpath("..", "resources",
-                                                           "occurrence_records_examples.md").read_text()
-    mq_examples_doc = importlib.resources.files().joinpath("..", "resources", "media_records_examples.md").read_text()
+    query_format_doc = (
+        importlib.resources.files()
+        .joinpath("..", "resources", "records_query_format.md")
+        .read_text()
+    )
+    rq_examples_doc = (
+        importlib.resources.files()
+        .joinpath("..", "resources", "occurrence_records_examples.md")
+        .read_text()
+    )
+    mq_examples_doc = (
+        importlib.resources.files()
+        .joinpath("..", "resources", "media_records_examples.md")
+        .read_text()
+    )
 
     return SYSTEM_PROMPT_TEMPLATE.format(
         query_format_doc=query_format_doc,
         rq_examples_doc=rq_examples_doc,
-        mq_examples_doc=mq_examples_doc
+        mq_examples_doc=mq_examples_doc,
     ).strip()
