@@ -1,5 +1,5 @@
-# ichatbio-agent-example
+# ichatbio-idigbio-agent
 
-An agent for the iDigBio API.
+An [iChatBio](https://ichatbio.org) agent for the [iDigBio](https://idigbio.org) API.
 
 See https://github.com/acislab/ichatbio-idigbio-agent for development and deployment tips.
