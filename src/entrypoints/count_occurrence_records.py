@@ -14,8 +14,8 @@ from util import (
 )
 
 description = """\
-Counts the total number of records in iDigBio matching the user's search criteria. Also breaks the count down by a 
-specified field (default: scientific name) to build top-N lists or to find unique record field values that were 
+Counts the total number of occurrence records in iDigBio matching the user's search criteria. Also breaks the count down
+by a specified field (default: scientific name) to build top-N lists or to find unique record field values that were 
 matched. Counts can be broken down by any of iDigBio's query fields, such as "country" or "collector". Does NOT count
 the total number of unique values that were matched.
 
@@ -75,7 +75,7 @@ async def run(context: ResponseContext, request: str):
         )
 
         await process.log(
-            f"Sending a GET request to the iDigBio records summary API at {full_summary_api_url}"
+            f"Sending a GET request to the iDigBio Summary API at {full_summary_api_url}"
         )
 
         if params.count is None:
@@ -98,7 +98,7 @@ async def run(context: ResponseContext, request: str):
             " matching records in iDigBio"
         )
         await process.log(
-            f'[View summary of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
+            f'[View raw counts of of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
         if total_record_count > 0:
@@ -149,7 +149,7 @@ def remap_top_fields(top_fields):
 
 
 SYSTEM_PROMPT_TEMPLATE = """\
-You translate user requests into parameters for the iDigBio records summary API.
+You translate user requests into parameters for iDigBio's occurrence records Summary API.
 
 # Query format
 
