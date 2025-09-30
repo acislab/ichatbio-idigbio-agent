@@ -1,6 +1,6 @@
 import http.client
 import json
-from typing import Sized, Union, Type, Optional, Self
+from typing import Sized, Union, Type, Optional, Self, Callable, TypeVar
 
 import instructor
 import requests
@@ -138,7 +138,13 @@ def make_idigbio_download_url(params: dict = None):
     return f"https://api.idigbio.org/v2/download{url_params}"
 
 
-def make_llm_response_model(search_parameters_model: Type[BaseModel]):
+TModel = TypeVar("TModel", bound=BaseModel)
+
+
+def make_llm_response_model(
+    search_parameters_model: Type[TModel],
+    validation_callback: Callable[[TModel], None] = None,
+):
     class LLMResponseModel(BaseModel):
         plan: str = Field(
             description="A brief explanation of what API parameters you plan to use. Or, if you are unable to fulfill the user's request using the available API parameters, provide a brief explanation for why you cannot retrieve the requested records."
@@ -168,14 +174,17 @@ def make_llm_response_model(search_parameters_model: Type[BaseModel]):
                         "artifact_description must be provided when search_parameters is present"
                     )
 
+            if validation_callback:
+                validation_callback(self)
+
             return self
 
     return LLMResponseModel
 
 
 async def generate_search_parameters(
-    request: str, system_prompt: str, llm_response_model: BaseModel
-) -> (str, BaseModel, str):
+    request: str, system_prompt: str, llm_response_model: TModel
+) -> (str, TModel, str):
 
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
