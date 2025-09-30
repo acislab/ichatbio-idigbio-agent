@@ -68,9 +68,7 @@ async def run(context: ResponseContext, request: str):
             "/v2/search/records", json_params
         )
 
-        if success:
-            await process.log(f"Response code: {response_code}")
-        else:
+        if not success:
             await process.log(f"Response code: {response_code} - something went wrong!")
             return
 

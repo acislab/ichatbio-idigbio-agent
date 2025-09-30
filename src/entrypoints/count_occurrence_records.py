@@ -85,9 +85,7 @@ async def run(context: ResponseContext, request: str):
             full_summary_api_url
         )
 
-        if success:
-            await process.log(f"Response code: {response_code}")
-        else:
+        if not success:
             await process.log(f"Response code: {response_code} - something went wrong!")
             return
 
