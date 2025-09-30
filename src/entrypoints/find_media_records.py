@@ -38,7 +38,7 @@ async def run(context: ResponseContext, request: str):
     async with context.begin_process("Searching iDigBio media records") as process:
         process: IChatBioAgentProcess
         await process.log(
-            "Generating search parameters for the iDigBio's media records API"
+            "Generating search parameters for iDigBio's media records API"
         )
         try:
             plan, params, artifact_description = await generate_search_parameters(
@@ -59,7 +59,7 @@ async def run(context: ResponseContext, request: str):
 
         api_query_url = make_idigbio_api_url("/v2/search/media", json_params)
         await process.log(
-            f"Sending a POST request to the iDigBio media records API at {api_query_url}"
+            f"Sending a POST request to iDigBio's media records API at {api_query_url}"
         )
 
         response_code, success, response_data = query_idigbio_api(
