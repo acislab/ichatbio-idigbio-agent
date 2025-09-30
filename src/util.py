@@ -157,13 +157,16 @@ def make_llm_response_model(search_parameters_model: Type[BaseModel]):
 
         @model_validator(mode="after")
         def validate_model(self) -> Self:
-            if (
-                self.search_parameters is not None
-                and not self.search_parameters_fully_match_the_request
-            ):
-                raise ValueError(
-                    "The selected search parameters do not fully match the request. Either try again or abort."
-                )
+            if self.search_parameters:
+                if not self.search_parameters_fully_match_the_request:
+                    raise ValueError(
+                        "The selected search parameters do not fully match the request. Either try again or abort."
+                    )
+
+                if not self.artifact_description:
+                    raise ValueError(
+                        "artifact_description must be provided when search_parameters is present"
+                    )
 
             return self
 
