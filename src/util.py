@@ -1,6 +1,6 @@
 import http.client
 import json
-from typing import Sized, Union, Type, Optional, Self, Callable, TypeVar
+from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable
 
 import instructor
 import requests
@@ -174,17 +174,20 @@ def make_llm_response_model(
                         "artifact_description must be provided when search_parameters is present"
                     )
 
-            if validation_callback:
-                validation_callback(self)
+                if validation_callback:
+                    validation_callback(self.search_parameters)
 
             return self
 
     return LLMResponseModel
 
 
+UModel = TypeVar("UModel", bound=BaseModel)
+
+
 async def generate_search_parameters(
-    request: str, system_prompt: str, llm_response_model: TModel
-) -> (str, TModel, str):
+    request: str, system_prompt: str, llm_response_model: UModel
+) -> (str, UModel, str):
 
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
