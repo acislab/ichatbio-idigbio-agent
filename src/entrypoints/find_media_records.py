@@ -162,6 +162,12 @@ def get_system_prompt():
             artifact_description=None,
             search_parameters_fully_match_the_request=False,
         ),
+        "Images of blue plants": LLMResponseModel.model_construct(
+            plan="There are no search parameters for color or other image features, so I should abort.",
+            search_parameters=None,
+            artifact_description=None,
+            search_parameters_fully_match_the_request=False,
+        ),
     }
 
     return make_system_prompt(
