@@ -514,7 +514,7 @@ class IDigBioRecordsApiParameters(BaseModel):
         description="Search criteria for species occurrence records in iDigBio"
     )
     limit: Optional[int] = Field(
-        100, ge=1, le=5000, description="The maximum number of records to return"
+        5000, ge=1, le=5000, description="The maximum number of records to return"
     )
 
 
@@ -556,5 +556,5 @@ class IDigBioMediaApiParameters(BaseModel):
         None, description="Search criteria for species occurrence records"
     )
     limit: Optional[int] = Field(
-        None, description="The maximum number of records to return"
+        5000, description="The maximum number of records to return"
     )
