@@ -2,10 +2,9 @@ import http.client
 import importlib.resources
 
 import requests
+import util
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
-
-import util
 from prompt import make_system_prompt
 from schema import IDigBioSummaryApiParameters, IDBRecordsQuerySchema
 from util import (
@@ -151,22 +150,6 @@ def remap_top_fields(top_fields):
     return top_fields
 
 
-SYSTEM_PROMPT_TEMPLATE = """\
-You translate user requests into parameters for iDigBio's occurrence records Summary API.
-
-# Query format
-
-Here is a description of how iDigBio queries are formatted:
-
-[BEGIN QUERY FORMAT DOC]
-
-{query_format_doc}
-
-[END QUERY FORMAT DOC]
-
-"""
-
-
 def get_system_prompt():
     query_format_doc = (
         importlib.resources.files()
@@ -218,7 +201,9 @@ def get_system_prompt():
             retry=False,
         ),
     }
+
     return make_system_prompt(
-        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
-        examples,
+        preamble="You translate user requests into parameters for iDigBio's occurrence records Summary API.",
+        query_format_doc=query_format_doc,
+        examples=examples,
     )

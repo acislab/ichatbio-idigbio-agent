@@ -2,7 +2,6 @@ import importlib.resources
 
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
-
 from prompt import make_system_prompt
 from schema import IDigBioMediaApiParameters, IDBRecordsQuerySchema, IDBMediaQuerySchema
 from util import (
@@ -103,29 +102,6 @@ async def run(context: ResponseContext, request: str):
             )
 
 
-SYSTEM_PROMPT_TEMPLATE = """
-You translate user requests into parameters for the iDigBio media search API.
-
-# Query format
-
-Here is a description of how iDigBio queries are formatted:
-
-[BEGIN QUERY FORMAT DOC]
-
-{query_format_doc}
-
-[END QUERY FORMAT DOC]
-
-# Tips
-
-- Searching by lists performs an OR operation. For example, a search for "genus":["Ursus","Puffinus"] will return Ursus
-records and ALSO Puffinus records, it will NOT return co-occurrences of Ursus and Puffinus.
-
-- Do not choose search parameters that only partially fulfill the user's request. Instead, you should abort (don't set any search parameters) and explain why.
-
-"""
-
-
 def get_system_prompt():
     query_format_doc = (
         importlib.resources.files()
@@ -190,6 +166,7 @@ def get_system_prompt():
     }
 
     return make_system_prompt(
-        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
-        examples,
+        preamble="You translate user requests into parameters for the iDigBio media search API.",
+        query_format_doc=query_format_doc,
+        examples=examples,
     )

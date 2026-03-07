@@ -3,7 +3,6 @@ import importlib.resources
 
 from ichatbio.agent_response import IChatBioAgentProcess, ResponseContext
 from ichatbio.types import AgentEntrypoint
-
 from prompt import make_system_prompt
 from schema import IDBRecordsQuerySchema, IDigBioRecordsApiParameters
 from util import (
@@ -110,29 +109,6 @@ async def run(context: ResponseContext, request: str):
             )
 
 
-SYSTEM_PROMPT_TEMPLATE = """
-You translate user requests into parameters for the iDigBio record search API.
-
-# Query format
-
-Here is a description of how iDigBio queries are formatted:
-
-[BEGIN QUERY FORMAT DOC]
-
-{query_format_doc}
-
-[END QUERY FORMAT DOC]
-
-# Tips
-
-- Searching by lists performs an OR operation. For example, a search for "genus":["Ursus","Puffinus"] will return Ursus
-records and ALSO Puffinus records, it will NOT return co-occurrences of Ursus and Puffinus.
-
-- The iDigBio API can NOT perform searches that relate records to each other. For example, it cannot retrieve records that are near other records unless the locations of those records can be specified as search parameters.
-
-"""
-
-
 @functools.cache
 def get_system_prompt():
     query_format_doc = (
@@ -204,6 +180,7 @@ def get_system_prompt():
     }
 
     return make_system_prompt(
-        SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
-        examples,
+        preamble="You translate user requests into parameters for the iDigBio record search API.",
+        query_format_doc=query_format_doc,
+        examples=examples,
     )
