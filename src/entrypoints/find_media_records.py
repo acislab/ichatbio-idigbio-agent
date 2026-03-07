@@ -41,12 +41,17 @@ async def run(context: ResponseContext, request: str):
             "Generating search parameters for iDigBio's media records API"
         )
         try:
-            plan, params, artifact_description = await generate_search_parameters(
-                request, get_system_prompt(), LLMResponseModel
+            plan, params, artifact_description, generation_warnings = (
+                await generate_search_parameters(
+                    request, get_system_prompt(), LLMResponseModel
+                )
             )
         except AIGenerationException as e:
             await process.log(e.message)
             return
+
+        if generation_warnings:
+            await process.log(generation_warnings)
 
         if params is None:
             await process.log(
@@ -134,8 +139,9 @@ def get_system_prompt():
             search_parameters=IDigBioMediaApiParameters(
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
-            artifact_description="Occurrence records for the species Homo sapiens",
-            search_parameters_fully_match_the_request=True,
+            artifact_description="Specimen media records for the species Homo sapiens",
+            warnings=None,
+            retry=False,
         ),
         "Audio of Homo sapiens": LLMResponseModel(
             plan='To filter for audio media I need to use the mq field and search by mediatype. The mediatype for audio is "sounds". The request doesn\'t specify an authority for the name Homo sapiens, so I will search by genus and specificepithet instead of scientificname',
@@ -143,28 +149,43 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens"),
                 mq=IDBMediaQuerySchema(mediatype="sounds"),
             ),
-            artifact_description="Occurrence records for the species Homo sapiens",
-            search_parameters_fully_match_the_request=True,
+            artifact_description="Specimen media records for the species Homo sapiens",
+            warnings=None,
+            retry=False,
         ),
         "Pictures of Rattus rattus in Taiwan": LLMResponseModel(
             plan='To filter for picture media I need to use the mq field and search by mediatype. The mediatype for pictures is "images". To filter by species, I need to use the rq field. The request doesn\'t specify an authority for the name Rattus rattus, so I will search by genus and specificepithet instead of scientificname',
             search_parameters=IDigBioMediaApiParameters(
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
-            artifact_description="Occurrence records for the species Homo sapiens",
-            search_parameters_fully_match_the_request=True,
+            artifact_description="Specimen media records for the species Homo sapiens",
+            warnings=None,
+            retry=False,
         ),
         "Blurry images in Canada": LLMResponseModel.model_construct(
             plan="There are no search parameters for image quality, so I should abort.",
             search_parameters=None,
             artifact_description=None,
-            search_parameters_fully_match_the_request=False,
+            warnings=None,
+            retry=False,
         ),
         "Images of blue plants": LLMResponseModel.model_construct(
             plan="There are no search parameters for color or other image features, so I should abort.",
             search_parameters=None,
             artifact_description=None,
-            search_parameters_fully_match_the_request=False,
+            warnings=None,
+            retry=False,
+        ),
+        'Scientific name "this is fake but use it anyway"': LLMResponseModel.model_construct(
+            plan="The request placed a scientific name in quotes, so I will search by scientificname for an exact match",
+            search_parameters=IDigBioMediaApiParameters(
+                rq=IDBRecordsQuerySchema(
+                    scientificname="this is fake but use it anyway"
+                )
+            ),
+            artifact_description='Specimen media records with scientific name "this is fake but use it anyway"',
+            warnings='The scientific name "this is fake but use it anyway" does not appear to be a valid scientific name, but I will use it anyway because it was placed in quotes.',
+            retry=False,
         ),
     }
 

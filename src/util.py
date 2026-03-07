@@ -1,6 +1,6 @@
 import http.client
 import json
-from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable
+from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
 
 import instructor
 import requests
@@ -68,7 +68,7 @@ def url_encode_inner(x):
 
 
 def url_encode_params(d: dict) -> str:
-    d = sanitize_json(d)
+    d = cast(dict, sanitize_json(d))
     return percent_encode(
         "&".join([f"{k}={url_encode_inner(v)}" for k, v in d.items()])
     )
@@ -102,8 +102,8 @@ def _is_empty(data):
     return len(data) == 0 if isinstance(data, Sized) else False
 
 
-def query_idigbio_api(endpoint: str, params: dict) -> (str, bool, dict):
-    params = sanitize_json(params)
+def query_idigbio_api(endpoint: str, params: dict) -> tuple[str, bool, dict | None]:
+    params = cast(dict, sanitize_json(params))
     api_url = make_idigbio_api_url(endpoint)
     response = requests.post(api_url, json=params)
     code = (
@@ -113,7 +113,7 @@ def query_idigbio_api(endpoint: str, params: dict) -> (str, bool, dict):
     return code, response.ok, data
 
 
-def query_idigbio_data_api(params) -> (str, bool, dict):
+def query_idigbio_data_api(params) -> tuple[str, bool, dict]:
     sanitized_query = sanitize_json(params.get("rq", {}))
     api_params = {"rq": json.dumps(sanitized_query), "email": params.get("email", "")}
     response = requests.post("https://api.idigbio.org/v2/download", data=api_params)
@@ -157,21 +157,25 @@ def make_llm_response_model(
             None,
             description="A concise characterization of the retrieved occurrence record data, if any.",
         )
-        search_parameters_fully_match_the_request: bool = Field(
-            description="Whether or not the chosen search_parameters completely fulfill the request. It is unacceptable for the search parameters to only partially match the request.",
+        warnings: Optional[str] = Field(
+            None,
+            description="If there is any reason why the search parameters might not fully match the request, or for the results of the search to not fully complete the request, explain why here.",
+        )
+        retry: bool = Field(
+            description="Set True if you would be able to fix the warnings by setting different search parameters."
         )
 
         @model_validator(mode="after")
         def validate_model(self) -> Self:
             if self.search_parameters:
-                if not self.search_parameters_fully_match_the_request:
-                    raise ValueError(
-                        "The selected search parameters do not fully match the request. Either try again or abort."
-                    )
-
                 if not self.artifact_description:
                     raise ValueError(
                         "artifact_description must be provided when search_parameters is present"
+                    )
+
+                if self.retry and self.warnings:
+                    raise ValueError(
+                        "I need to try again to address the following: " + self.warnings
                     )
 
                 if validation_callback:
@@ -187,7 +191,7 @@ UModel = TypeVar("UModel", bound=BaseModel)
 
 async def generate_search_parameters(
     request: str, system_prompt: str, llm_response_model: UModel
-) -> (str, UModel, str):
+) -> tuple[str, UModel, str, str]:
 
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
@@ -204,4 +208,9 @@ async def generate_search_parameters(
     except InstructorRetryException as e:
         raise AIGenerationException(e)
 
-    return result.plan, result.search_parameters, result.artifact_description
+    return (
+        result.plan,
+        result.search_parameters,
+        result.artifact_description,
+        result.warnings or "",
+    )

@@ -49,12 +49,17 @@ async def run(context: ResponseContext, request: str):
 
         await process.log("Generating search parameters for species occurrences")
         try:
-            plan, params, artifact_description = await util.generate_search_parameters(
-                request, get_system_prompt(), LLMResponseModel
+            plan, params, artifact_description, generation_warnings = (
+                await util.generate_search_parameters(
+                    request, get_system_prompt(), LLMResponseModel
+                )
             )
         except AIGenerationException as e:
             await process.log(e.message)
             return
+
+        if generation_warnings:
+            await process.log(generation_warnings)
 
         if params is None:
             await process.log(
@@ -177,7 +182,8 @@ def get_system_prompt():
                 top_fields="scientificname",
             ),
             artifact_description="Per-species record counts for class Aves",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         "Number of families of Aves": LLMResponseModel(
             plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique families in Aves, so I will use "families" as top_fields.',
@@ -186,7 +192,8 @@ def get_system_prompt():
                 top_fields="scientificname",
             ),
             artifact_description="Per-family record counts for class Aves",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         "Count Ursus arctos in each state in Australia": LLMResponseModel(
             plan='The name Ursus arctos doesn\'t have authority specified, so I will search by genus and specificepithet instead of scientificname. I will limit the search to the country Australia and set top_fields to "stateprovince" to break down record counts by state.',
@@ -197,10 +204,20 @@ def get_system_prompt():
                 top_fields="stateprovince",
             ),
             artifact_description="Per-state record counts for Ursus arctos in Australia",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
+        ),
+        'Which countries have the records assigned the family "this is fake but use it anyway"': LLMResponseModel(
+            plan="The request placed a scientific name in quotes, so I will search by scientificname for an exact match",
+            search_parameters=IDigBioSummaryApiParameters(
+                rq=IDBRecordsQuerySchema(family="this is fake but use it anyway"),
+                top_fields="country",
+            ),
+            artifact_description='Occurrence records for the species "this is fake but use it anyway"',
+            warnings='The scientific name "this is fake but use it anyway" does not appear to be a valid scientific name, but I will use it anyway because it was placed in quotes.',
+            retry=False,
         ),
     }
-
     return make_system_prompt(
         SYSTEM_PROMPT_TEMPLATE.format(query_format_doc=query_format_doc),
         examples,

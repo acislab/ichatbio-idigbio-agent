@@ -43,12 +43,17 @@ async def run(context: ResponseContext, request: str):
             "Generating search parameters for iDigBio's occurrence records API"
         )
         try:
-            plan, params, artifact_description = await generate_search_parameters(
-                request, get_system_prompt(), LLMResponseModel
+            plan, params, artifact_description, generation_warnings = (
+                await generate_search_parameters(
+                    request, get_system_prompt(), LLMResponseModel
+                )
             )
         except AIGenerationException as e:
             await process.log(e.message)
             return
+
+        if generation_warnings:
+            await process.log(generation_warnings)
 
         if params is None:
             await process.log(
@@ -143,7 +148,8 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(genus="Homo", specificepithet="sapiens")
             ),
             artifact_description="Occurrence records for the species Homo sapiens",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         "Only Homo sapiens Linnaeus, 1758": LLMResponseModel(
             plan="The name name includes authority information, so I will search by scientificname",
@@ -151,7 +157,8 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(scientificname="Homo sapiens Linnaeus, 1758")
             ),
             artifact_description='Occurrence records for the species "Homo sapiens Linnaeus, 1758"',
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         'Scientific name "this is fake but use it anyway"': LLMResponseModel(
             plan="The request placed a scientific name in quotes, so I will search by scientificname for an exact match",
@@ -161,7 +168,8 @@ def get_system_prompt():
                 )
             ),
             artifact_description='Occurrence records for the species "this is fake but use it anyway"',
-            search_parameters_fully_match_the_request=True,
+            warnings='The scientific name "this is fake but use it anyway" does not appear to be a valid scientific name, but I will use it anyway because it was placed in quotes.',
+            retry=False,
         ),
         "kingdom must be specified": LLMResponseModel(
             plan='To find records that have the kingdom field, I need to search by kingdom for {"type": "exists"}',
@@ -169,7 +177,8 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(kingdom={"type": "exists"})
             ),
             artifact_description="Occurrence records with the kingdom field specified",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         "Records with no collector specified": LLMResponseModel(
             plan='To find records with no collector field, I need to search by collector for {"type": "missing"}',
@@ -177,7 +186,8 @@ def get_system_prompt():
                 rq=IDBRecordsQuerySchema(collector={"type": "missing"})
             ),
             artifact_description="Occurrence records with no collector specified",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
         "Homo sapiens and Rattus rattus in North America and Australia": LLMResponseModel(
             plan="The request concerns two species (Homo sapiens and Rattus rattus) in two continents (North America and Australia), so I wlll search using the scientificnmae and continent fields, specifying the search values using list syntax.",
@@ -188,7 +198,8 @@ def get_system_prompt():
                 )
             ),
             artifact_description="Occurrence records of Homo sapiens and Rattus rattus in North America and Australia",
-            search_parameters_fully_match_the_request=True,
+            warnings=None,
+            retry=False,
         ),
     }
 
