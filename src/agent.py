@@ -21,7 +21,7 @@ class IDigBioAgent(IChatBioAgent):
         return AgentCard(
             name="iDigBio Search",
             description="Searches for information in the iDigBio portal (https://idigbio.org).",
-            icon=None,
+            icon='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y+mAAAAjVBMVEVHcExgjLhgjLhim4pgjLhgjLhgjLhgjLhgjLhgjLhgjLnMoy/WjCnWjCnWjClqqlFqqlFqqlHWjCnWjCnXjCfVpC5qqlFqqlFqqlFqqlHXjCjXjChqqlFqqlFqqlHVmSzWjChqqlHWjCnUuDPTuTPTuTPTuDPTuDPTuDPTuDPTuDPTuDPTuDPTuDPTuDN06hLOAAAAL3RSTlMAjeob/ms9z3muoRKP/6uV3F7ZekY3Mnf/yqDA9UbvKmOy8b9JaH/lW7WZ/8qpoeTYrfYAAAF3SURBVHgBbMtBDsAwCMTAhnhhyf8fXPVWKfg68vNrxUb5TGUVadCExXfCGt42fQSibiQOaQQekBUtg7nR4E5Q1I0lyIOIfWPi6FyUXxaoAseBGAZOmeIwOMtJuf3//y6VzrLAOICLIEnyv6+00ab9XTXI02oDss5bQQFAVEkxc8Zqu1qdz/CenLBedP0F4GFUo57MhPNhf0BHs5xt6D3RAsVmYt4UNSY0Y3vqAi2LF3MnPUxsM1aZ2WgAfUdLWyDhiTwmHXmYDHNRDReo1Hk/z56kCMisY1Em5zbPuN4giESVfaXgkdo/bqBZmYLrfb6DJLUUs50BTkMbtgWFx/x43m8XJ/sfJQcAKU1cMhe83s/P5/sA4FxvL/jFpowlmYi/NsgYCWAQBILprXlB9Iiu8P/nxTIT3ZId4OZmD2eaWOMvZZXd5ETeMNavPw8agKz7LrHJipPS3GUktdLN4XTWAj1w2y7rCLKhFuU6WIYQ1OtEEen52XsBMysktejZSV8AAAAASUVORK5CYII=',
             entrypoints=[
                 find_occurrence_records.entrypoint,
                 find_media_records.entrypoint,
