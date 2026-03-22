@@ -196,7 +196,7 @@ async def generate_search_parameters(
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
         result = await client.chat.completions.create(
-            model="gpt-4.1-unfiltered",
+            model="gpt-4.1",
             temperature=0,
             response_model=llm_response_model,
             messages=[
