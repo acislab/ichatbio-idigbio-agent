@@ -92,15 +92,16 @@ async def count_occurrence_records(
         if not success:
             await process.log(f"Response code: {response_code} - something went wrong!")
             return
-
-        total_unique_count = len(top_counts.get(top_fields, []))
+        stripped_top_fields = top_fields.replace(".keyword", "") # strip elasticsearch subfield identifiers ie .keyword
+        total_unique_count = len(top_counts.get(stripped_top_fields, []))
+        
 
         await context.reply(
-            f'The API query found {total_unique_count} unique "{top_fields}" values across {total_record_count}'
+            f'The API query found {total_unique_count} unique "{stripped_top_fields}" values across {total_record_count}'
             " matching records in iDigBio"
         )
         await process.log(
-            f'[View raw counts of of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
+            f'[View raw counts of {total_unique_count} unique "{stripped_top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
         if total_record_count > 0:
