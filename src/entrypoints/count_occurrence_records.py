@@ -100,7 +100,7 @@ async def run(context: ResponseContext, request: str):
             " matching records in iDigBio"
         )
         await process.log(
-            f'[View raw counts of of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
+            f'[View raw counts of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
         if total_record_count > 0:
