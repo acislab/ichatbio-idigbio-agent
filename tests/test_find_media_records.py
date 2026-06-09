@@ -1,5 +1,5 @@
 import pytest
-from ichatbio.agent_response import ArtifactResponse
+from ichatbio.agent_response import ArtifactResponse, ProcessBeginResponse
 
 
 @pytest.mark.asyncio
@@ -8,12 +8,17 @@ async def test_find_media_records(agent, context, messages):
         context, "Find pictures of Rattus rattus", "find_media_records", None
     )
 
-    artifact = next((m for m in messages if isinstance(m, ArtifactResponse)), None)
+    assert messages[0] == ProcessBeginResponse(summary="Searching iDigBio media records")
+    artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
+    assert artifacts
+    artifact = artifacts[0]
     assert artifact
     assert artifact.metadata["retrieved_record_count"] > 0
 
     # Make sure the agent is outputting links to view records in iDigBio
     assert "https://portal.idigbio.org/portal/mediarecords/" in str(messages)
+
+    assert len(artifacts) == 1
 
 
 @pytest.mark.asyncio
