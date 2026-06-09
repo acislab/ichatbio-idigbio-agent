@@ -2,11 +2,13 @@ import http.client
 import importlib.resources
 
 import requests
+from ichatbio.agent_response import IChatBioAgentProcess
+
 import util
-from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
-from ichatbio.types import AgentEntrypoint
 from prompt import make_system_prompt
 from schema import IDigBioSummaryApiParameters, IDBRecordsQuerySchema
+from tools.context import current_context
+from tools.util import context_tool
 from util import (
     AIGenerationException,
     make_llm_response_model,
@@ -31,18 +33,16 @@ different authors)
 Also returns the URL used to collect records counts from the iDigBio Summary API.
 """
 
-# This gets included in the agent card
-entrypoint = AgentEntrypoint(
-    id="count_occurrence_records", description=description, parameters=None
-)
-
 MAX_COUNT = 5000
-
 
 LLMResponseModel = make_llm_response_model(IDigBioSummaryApiParameters)
 
 
-async def run(context: ResponseContext, request: str):
+@context_tool(description=description)
+async def count_occurrence_records(
+        request: str
+):
+    context = current_context.get()
     async with context.begin_process("Requesting iDigBio statistics") as process:
         process: IChatBioAgentProcess
 
@@ -160,7 +160,7 @@ def get_system_prompt():
 
     examples = {
         "Number of species of Aves": LLMResponseModel(
-            plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique species in Aves, so I will use "scientificname" as top_fields. Becayse scientificname can also match ranks besides species, so I will also limit the taxonrank (the rank of the scientific name in each record) to species',
+            plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique species in Aves, so I will use "scientificname" as top_fields. Because scientificname can also match ranks besides species, so I will also limit the taxonrank (the rank of the scientific name in each record) to species',
             search_parameters=IDigBioSummaryApiParameters(
                 rq=IDBRecordsQuerySchema(class_="Aves", taxonrank="species"),
                 top_fields="scientificname",

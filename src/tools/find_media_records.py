@@ -4,6 +4,8 @@ from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
 from ichatbio.types import AgentEntrypoint
 from prompt import make_system_prompt
 from schema import IDigBioMediaApiParameters, IDBRecordsQuerySchema, IDBMediaQuerySchema
+from tools.context import current_context
+from tools.util import context_tool
 from util import (
     AIGenerationException,
     query_idigbio_api,
@@ -14,26 +16,24 @@ from util import (
 
 # This description helps iChatBio understand when to call this entrypoint
 description = """\
-Searches iDigBio for media records (like images and audio). Returns the total number of media records that were found,
-a URL to access the raw results returned by the iDigBio media API, and a URL to view the results in the iDigBio Search
-Portal. Also displays an interactive media gallery to the user.
-"""
+Searches media records (like images and audio) using the iDigBio media API.
 
-# This gets included in the agent card
-entrypoint = AgentEntrypoint(
-    id="find_media_records", description=description, parameters=None
-)
+Returns:
+- The total number of media records that were found
+- The URL used to call the iDigBio media API
+- A URL to view related occurrence records in the iDigBio Search Portal
+- An artifact containing the retrieved media records
+"""
 
 
 LLMResponseModel = make_llm_response_model(IDigBioMediaApiParameters)
 
 
-async def run(context: ResponseContext, request: str):
-    """
-    Executes this specific entrypoint. See description above. This function yields a sequence of messages that are
-    returned one-by-one to iChatBio in response to the request, logging the retrieval process in real time. Any records
-    retrieved from the iDigBio API are packaged as an JSON artifact that iChatBio can interact with.
-    """
+@context_tool(description=description)
+async def find_media_records(
+        request: str
+):
+    context = current_context.get()
     async with context.begin_process("Searching iDigBio media records") as process:
         process: IChatBioAgentProcess
         await process.log(

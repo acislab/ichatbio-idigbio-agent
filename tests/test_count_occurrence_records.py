@@ -1,5 +1,5 @@
 import pytest
-from ichatbio.agent_response import ArtifactResponse
+from ichatbio.agent_response import ArtifactResponse, ProcessBeginResponse
 
 
 @pytest.mark.asyncio
@@ -8,9 +8,13 @@ async def test_count_occurrence_records(agent, context, messages):
         context, "Find countries with Rattus rattus", "count_occurrence_records", None
     )
 
-    artifact = next((m for m in messages if isinstance(m, ArtifactResponse)), None)
+    assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
+    artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
+    assert artifacts
+    artifact = artifacts[0]
     assert artifact
     assert artifact.metadata["total_record_count"] > 0
+    assert len(artifacts) == 1
 
 
 @pytest.mark.asyncio
@@ -19,10 +23,14 @@ async def test_count_species(agent, context, messages):
         context, "How many bird species in Colombia?", "count_occurrence_records", None
     )
 
-    artifact = next((m for m in messages if isinstance(m, ArtifactResponse)), None)
+    assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
+    artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
+    assert artifacts
+    artifact = artifacts[0]
     assert artifact
     assert artifact.uris[0] == (
         "https://search.idigbio.org/v2/summary/top/records?"
         "top_fields=%22scientificname%22&count=5000&rq=%7B%22class%22:%22Aves%22,%22country%22:%22Colombia%22,%22taxonrank%22:%22species%22%7D"
     )
     assert artifact.metadata["total_record_count"] > 0
+    assert len(artifacts) == 1
