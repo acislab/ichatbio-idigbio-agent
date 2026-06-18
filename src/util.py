@@ -1,11 +1,12 @@
 import http.client
 import json
-from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
+import os
+from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast, Any
 
 import instructor
 import requests
 from instructor import AsyncInstructor
-from instructor.exceptions import InstructorRetryException
+from instructor.core import InstructorRetryException
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic import Field
@@ -14,6 +15,16 @@ from pydantic_core import ValidationError
 from tenacity import AsyncRetrying
 from tenacity import RetryCallState
 from tenacity.stop import stop_base
+
+
+def update_llm_credentials(metadata: dict[str, Any] | None):
+    if metadata is None:
+        return
+
+    if os.getenv("USE_LLM_PROXY") == "true":
+        match metadata:
+            case {"https://ichatbio.org/a2a/v1": {"temporary_llm_key": llm_key}}:
+                os.environ["OPENAI_API_KEY"] = llm_key
 
 
 def _get_terminal_validation_error(e: Exception):
@@ -55,7 +66,7 @@ class StopOnTerminalErrorOrMaxAttempts(stop_base):
 def url_encode_inner(x):
     if type(x) == dict:
         return (
-            "{" + ",".join([f'"{k}":{url_encode_inner(v)}' for k, v in x.items()]) + "}"
+                "{" + ",".join([f'"{k}":{url_encode_inner(v)}' for k, v in x.items()]) + "}"
         )
     elif type(x) == list:
         return "[" + ",".join([url_encode_inner(v) for v in x]) + "]"
@@ -142,8 +153,8 @@ TModel = TypeVar("TModel", bound=BaseModel)
 
 
 def make_llm_response_model(
-    search_parameters_model: Type[TModel],
-    validation_callback: Callable[[TModel], None] = None,
+        search_parameters_model: Type[TModel],
+        validation_callback: Callable[[TModel], None] = None,
 ):
     class LLMResponseModel(BaseModel):
         plan: str = Field(
@@ -190,9 +201,8 @@ UModel = TypeVar("UModel", bound=BaseModel)
 
 
 async def generate_search_parameters(
-    request: str, system_prompt: str, llm_response_model: UModel
+        request: str, system_prompt: str, llm_response_model: UModel
 ) -> tuple[str, UModel, str, str]:
-
     try:
         client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
         result = await client.chat.completions.create(

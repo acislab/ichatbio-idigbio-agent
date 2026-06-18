@@ -4,9 +4,7 @@ from ichatbio.agent_response import ArtifactResponse, ProcessBeginResponse
 
 @pytest.mark.asyncio
 async def test_count_occurrence_records(agent, context, messages):
-    await agent.run(
-        context, "Find countries with Rattus rattus", "count_occurrence_records", None
-    )
+    await agent.run(context, "Find countries with Rattus rattus", "count_occurrence_records")
 
     assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
@@ -19,9 +17,7 @@ async def test_count_occurrence_records(agent, context, messages):
 
 @pytest.mark.asyncio
 async def test_count_species(agent, context, messages):
-    await agent.run(
-        context, "How many bird species in Colombia?", "count_occurrence_records", None
-    )
+    await agent.run(context, "How many bird species in Colombia?", "count_occurrence_records")
 
     assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
