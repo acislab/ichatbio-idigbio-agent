@@ -75,7 +75,7 @@ class IDigBioAgent(IChatBioAgent):
         # Build a LangChain agent graph
         self.langchain_agent = langchain.agents.create_agent(
             model=ChatOpenAI(
-                model="gpt-4.1",
+                model=os.getenv("LLM"),
                 tool_choice="required",
                 openai_api_key=lambda: os.getenv("OPENAI_API_KEY")
             ),
@@ -103,6 +103,9 @@ async def finish(message: str, runtime: ToolRuntime):
 
 
 def create_app() -> Starlette:
+    if os.getenv("LLM") is None:
+        raise ValueError("LLM environment variable must be set")
+
     dotenv.load_dotenv()
     agent = IDigBioAgent()
     app = build_agent_app(agent)

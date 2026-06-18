@@ -648,7 +648,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "contextvars", specifier = ">=2.4" },
-    { name = "ichatbio-sdk", specifier = "==0.2.7" },
+    { name = "ichatbio-sdk", specifier = "==0.2.8" },
     { name = "instructor", specifier = ">=1.15.1" },
     { name = "langchain", specifier = ">=1.3.4" },
     { name = "langchain-openai", specifier = ">=1.2.2" },
@@ -666,7 +666,7 @@ dev = [
 
 [[package]]
 name = "ichatbio-sdk"
-version = "0.2.7"
+version = "0.2.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "a2a-sdk", extra = ["http-server"] },
@@ -676,9 +676,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "uvicorn" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/20/ee/4677c51c49388fe056cf30dacbbb215439d1e3bea9bfe611d73f721cda9b/ichatbio_sdk-0.2.7.tar.gz", hash = "sha256:846359bdfef084a676305b6f6f59e1d4e39f10388951765ba5db193795621f96", size = 204361, upload-time = "2026-03-25T21:59:36.027Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e7/a0/f453003e93ed37c082262e3b6c95f31a80b503ad9658d4bbd7addcb9acb8/ichatbio_sdk-0.2.8.tar.gz", hash = "sha256:0234a49c9ee0e7ab35c88e64afe6726a1f19050fffc25a910156081863b407e8", size = 204757, upload-time = "2026-06-18T21:01:50.403Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/a8/65/02341cfa2a7e5ff162f080061172ca20d88d1b7aaefe18a3a80cd6cb5076/ichatbio_sdk-0.2.7-py3-none-any.whl", hash = "sha256:52237107c0f0fc0e16e927c98e7dd6669245eee802891af03d15bb2634f8db41", size = 14411, upload-time = "2026-03-25T21:59:35.027Z" },
+    { url = "https://files.pythonhosted.org/packages/3f/cc/dfc3d8f9d9fdc3ac5f937af1178156c9fb198a39ed7b3197c60b0c083b51/ichatbio_sdk-0.2.8-py3-none-any.whl", hash = "sha256:f4f1b2e85cdb9b2ebe35619c7ee5796cfca497e7e5304e450bf073f52a63d89b", size = 14483, upload-time = "2026-06-18T21:01:49.373Z" },
 ]
 
 [[package]]
