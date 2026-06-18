@@ -13,6 +13,11 @@ pip3 install uv
 uv sync
 source .venv/bin/activate
 ```
+Set up .env:
+```env
+OPENAI_API_KEY=[key]
+OPENAI_BASE_URL=[url]
+```
 
 Run the server:
 
@@ -27,3 +32,4 @@ docker compose up --build
 ```
 
 If everything worked, you should be able to find the agent card at http://localhost:9999/.well-known/agent.json.
+
