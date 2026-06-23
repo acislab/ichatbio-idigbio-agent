@@ -35,7 +35,7 @@ class IDigBioAgent(IChatBioAgent):
             entrypoints=[
                 AgentEntrypoint(
                     id="search_idigbio",
-                    description="Retrieves data from the iDigBio portal, including species occurrence records and associated media records. Can also provide breakdowns of record counts by record fields like scientific name and country."
+                    description="Retrieves data from the iDigBio portal, including species occurrence records and associated media records. Can also provide breakdowns of record counts by record fields like scientific name and country.",
                 ),
             ],
         )
@@ -47,7 +47,7 @@ class IDigBioAgent(IChatBioAgent):
         request: str,
         entrypoint: str,
         params: BaseModel | None = None,
-        metadata: dict[str, Any] | None = None
+        metadata: dict[str, Any] | None = None,
     ):
         """
         Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
@@ -61,7 +61,7 @@ class IDigBioAgent(IChatBioAgent):
 
         try:
             async def dispatch(langchain_config: dict[str, Any]):
-                # Run the graph
+                # Run the graph with Langfuse's LangChain callback config
                 return await self.langchain_agent.ainvoke(
                     {
                         "messages": [
@@ -93,14 +93,14 @@ class IDigBioAgent(IChatBioAgent):
             model=ChatOpenAI(
                 model=os.getenv("LLM"),
                 tool_choice="required",
-                openai_api_key=lambda: os.getenv("OPENAI_API_KEY")
+                openai_api_key=lambda: os.getenv("OPENAI_API_KEY"),
             ),
             tools=[
                 find_occurrence_records,
                 count_occurrence_records,
                 find_media_records,
                 abort,
-                finish
+                finish,
             ],
             system_prompt=control_loop_prompt,
         )
