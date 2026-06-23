@@ -1,22 +1,27 @@
-from typing import override, Optional
+import importlib.resources
+import os
+from typing import override, Any
 
 import dotenv
+
 dotenv.load_dotenv()
 
+import langchain.agents
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
-from ichatbio.types import AgentCard
+from ichatbio.types import AgentCard, AgentEntrypoint
+from langchain_core.tools import tool
+from langchain_openai import ChatOpenAI
+from langgraph.prebuilt import ToolRuntime
 from pydantic import BaseModel
 from starlette.applications import Starlette
 
-from entrypoints import (
-    find_occurrence_records,
-    find_media_records,
-    count_occurrence_records,
-)
-
-from util import run_with_langfuse_agent_trace
+from tools.context import current_context
+from tools.count_occurrence_records import count_occurrence_records
+from tools.find_media_records import find_media_records
+from tools.find_occurrence_records import find_occurrence_records
+from util import run_with_langfuse_agent_trace, update_llm_credentials
 
 
 class IDigBioAgent(IChatBioAgent):
@@ -26,11 +31,12 @@ class IDigBioAgent(IChatBioAgent):
             name="iDigBio Search",
             description="Searches for information in the iDigBio portal (https://idigbio.org).",
             documentation_url="https://github.com/acislab/ichatbio-idigbio-agent",
-            icon='data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAcCAMAAABF0y+mAAAAjVBMVEVHcExgjLhgjLhim4pgjLhgjLhgjLhgjLhgjLhgjLhgjLnMoy/WjCnWjCnWjClqqlFqqlFqqlHWjCnWjCnXjCfVpC5qqlFqqlFqqlFqqlHXjCjXjChqqlFqqlFqqlHVmSzWjChqqlHWjCnUuDPTuTPTuTPTuDPTuDPTuDPTuDPTuDPTuDPTuDPTuDPTuDN06hLOAAAAL3RSTlMAjeob/ms9z3muoRKP/6uV3F7ZekY3Mnf/yqDA9UbvKmOy8b9JaH/lW7WZ/8qpoeTYrfYAAAF3SURBVHgBbMtBDsAwCMTAhnhhyf8fXPVWKfg68vNrxUb5TGUVadCExXfCGt42fQSibiQOaQQekBUtg7nR4E5Q1I0lyIOIfWPi6FyUXxaoAseBGAZOmeIwOMtJuf3//y6VzrLAOICLIEnyv6+00ab9XTXI02oDss5bQQFAVEkxc8Zqu1qdz/CenLBedP0F4GFUo57MhPNhf0BHs5xt6D3RAsVmYt4UNSY0Y3vqAi2LF3MnPUxsM1aZ2WgAfUdLWyDhiTwmHXmYDHNRDReo1Hk/z56kCMisY1Em5zbPuN4giESVfaXgkdo/bqBZmYLrfb6DJLUUs50BTkMbtgWFx/x43m8XJ/sfJQcAKU1cMhe83s/P5/sA4FxvL/jFpowlmYi/NsgYCWAQBILprXlB9Iiu8P/nxTIT3ZId4OZmD2eaWOMvZZXd5ETeMNavPw8agKz7LrHJipPS3GUktdLN4XTWAj1w2y7rCLKhFuU6WIYQ1OtEEen52XsBMysktejZSV8AAAAASUVORK5CYII=',
+            icon="https://raw.githubusercontent.com/acislab/ichatbio-idigbio-agent/refs/heads/main/src/resources/idigbio.png",
             entrypoints=[
-                find_occurrence_records.entrypoint,
-                find_media_records.entrypoint,
-                count_occurrence_records.entrypoint,
+                AgentEntrypoint(
+                    id="search_idigbio",
+                    description="Retrieves data from the iDigBio portal, including species occurrence records and associated media records. Can also provide breakdowns of record counts by record fields like scientific name and country."
+                ),
             ],
         )
 
@@ -40,31 +46,87 @@ class IDigBioAgent(IChatBioAgent):
         context: ResponseContext,
         request: str,
         entrypoint: str,
-        params: Optional[BaseModel],
+        params: BaseModel | None = None,
+        metadata: dict[str, Any] | None = None
     ):
-        async def dispatch() -> None:
-            match entrypoint:
-                case find_occurrence_records.entrypoint.id:
-                    await find_occurrence_records.run(context, request)
+        """
+        Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
+        but must do so by calling tools. Only tools send response messages back iChatBio.
+        """
+        # If configured to use iChatBio as an LLM proxy, use access information provided in request metadata
+        update_llm_credentials(metadata)
 
-                case find_media_records.entrypoint.id:
-                    await find_media_records.run(context, request)
+        # Give tools access to the `context` object so they can send response messages
+        context_token = current_context.set(context)
 
-                case count_occurrence_records.entrypoint.id:
-                    await count_occurrence_records.run(context, request)
+        try:
+            async def dispatch(langchain_config: dict[str, Any]):
+                # Run the graph
+                return await self.langchain_agent.ainvoke(
+                    {
+                        "messages": [
+                            {"role": "user", "content": request},
+                        ]
+                    },
+                    config=langchain_config,
+                )
 
-                case _:
-                    raise ValueError(f"Unknown entrypoint: {entrypoint}")
+            await run_with_langfuse_agent_trace(
+                request=request,
+                entrypoint=entrypoint,
+                params=params,
+                operation=dispatch,
+            )
 
-        await run_with_langfuse_agent_trace(
-            request=request,
-            entrypoint=entrypoint,
-            params=params,
-            operation=dispatch,
+        finally:
+            current_context.reset(context_token)
+
+    def __init__(self):
+        control_loop_prompt = (
+            importlib.resources.files()
+            .joinpath("resources", "control_loop_prompt.md")
+            .read_text()
+        )
+
+        # Build a LangChain agent graph
+        self.langchain_agent = langchain.agents.create_agent(
+            model=ChatOpenAI(
+                model=os.getenv("LLM"),
+                tool_choice="required",
+                openai_api_key=lambda: os.getenv("OPENAI_API_KEY")
+            ),
+            tools=[
+                find_occurrence_records,
+                count_occurrence_records,
+                find_media_records,
+                abort,
+                finish
+            ],
+            system_prompt=control_loop_prompt,
         )
 
 
+@tool(return_direct=True)  # This tool ends the agent loop
+async def abort(reason: str, runtime: ToolRuntime):
+    """If you can't fulfill the user's request, abort instead and explain why."""
+    await current_context.get().reply(reason)
+
+
+@tool(return_direct=True)  # This tool ends the agent loop
+async def finish(message: str, runtime: ToolRuntime):
+    """Mark the user's request as successfully completed."""
+    await current_context.get().reply(message)
+
+
 def create_app() -> Starlette:
+    dotenv.load_dotenv()
+
+    if os.getenv("OPENAI_API_KEY") is None:
+        raise ValueError("OPENAI_API_KEY environment variable must be set")
+
+    if os.getenv("LLM") is None:
+        raise ValueError("LLM environment variable must be set")
+
     agent = IDigBioAgent()
     app = build_agent_app(agent)
     return app

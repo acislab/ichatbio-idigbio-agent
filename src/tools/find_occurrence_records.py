@@ -1,10 +1,12 @@
 import functools
 import importlib.resources
 
-from ichatbio.agent_response import IChatBioAgentProcess, ResponseContext
-from ichatbio.types import AgentEntrypoint
+from ichatbio.agent_response import IChatBioAgentProcess
+
+from tools.util import context_tool
 from prompt import make_system_prompt
 from schema import IDBRecordsQuerySchema, IDigBioRecordsApiParameters
+from tools.context import current_context
 from util import (
     query_idigbio_api,
     make_idigbio_api_url,
@@ -14,33 +16,33 @@ from util import (
     make_llm_response_model,
 )
 
-# This description helps iChatBio understand when to call this entrypoint
 description = """\
-Searches for species occurrence records using the iDigBio Portal or the iDigBio records API. Returns the total number 
-of records that were found, the URL used to call the iDigBio Records API to perform the search, and a URL to view the 
-results in the iDigBio Search Portal.
-"""
+Searches for species occurrence records using the iDigBio records API.
 
-# This gets included in the agent card
-entrypoint = AgentEntrypoint(
-    id="find_occurrence_records", description=description, parameters=None
-)
+Returns:
+- The total number of occurrence records that were found
+- The URL used to call the iDigBio records API
+- A URL to view the results in the iDigBio Search Portal
+- An artifact containing the retrieved occurrence records
+"""
 
 LLMResponseModel = make_llm_response_model(IDigBioRecordsApiParameters)
 
 
-async def run(context: ResponseContext, request: str):
+@context_tool(description=description)
+async def find_occurrence_records(
+        request: str
+):
     """
-    Executes this specific entrypoint. See description above. This function yields a sequence of messages that are
-    returned one-by-one to iChatBio in response to the request, logging the retrieval process in real time. Any records
-    retrieved from the iDigBio API are packaged as an JSON artifact that iChatBio can interact with.
+    Generates a sequence of messages that are returned one-by-one to iChatBio in response to the request, logging the
+    retrieval process in real time. Any records retrieved from the iDigBio API are packaged as an JSON artifact that
+    iChatBio can interact with.
     """
+    context = current_context.get()
     async with context.begin_process("Searching iDigBio occurrence records") as process:
         process: IChatBioAgentProcess
 
-        await process.log(
-            "Generating search parameters for iDigBio's occurrence records API"
-        )
+        await process.log("Generating search parameters for iDigBio's occurrence records API")
         try:
             plan, params, artifact_description, generation_warnings = (
                 await generate_search_parameters(
