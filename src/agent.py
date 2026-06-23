@@ -103,13 +103,14 @@ async def finish(message: str, runtime: ToolRuntime):
 
 
 def create_app() -> Starlette:
+    dotenv.load_dotenv()
+
     if os.getenv("OPENAI_API_KEY") is None:
         raise ValueError("OPENAI_API_KEY environment variable must be set")
 
     if os.getenv("LLM") is None:
         raise ValueError("LLM environment variable must be set")
 
-    dotenv.load_dotenv()
     agent = IDigBioAgent()
     app = build_agent_app(agent)
     return app
