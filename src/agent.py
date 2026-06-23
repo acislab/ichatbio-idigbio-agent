@@ -1,6 +1,8 @@
 from typing import override, Optional
 
 import dotenv
+dotenv.load_dotenv()
+
 from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
@@ -13,6 +15,8 @@ from entrypoints import (
     find_media_records,
     count_occurrence_records,
 )
+
+from util import run_with_langfuse_agent_trace
 
 
 class IDigBioAgent(IChatBioAgent):
@@ -38,19 +42,29 @@ class IDigBioAgent(IChatBioAgent):
         entrypoint: str,
         params: Optional[BaseModel],
     ):
-        match entrypoint:
-            case find_occurrence_records.entrypoint.id:
-                await find_occurrence_records.run(context, request)
-            case find_media_records.entrypoint.id:
-                await find_media_records.run(context, request)
-            case count_occurrence_records.entrypoint.id:
-                await count_occurrence_records.run(context, request)
-            case _:
-                raise ValueError()
+        async def dispatch() -> None:
+            match entrypoint:
+                case find_occurrence_records.entrypoint.id:
+                    await find_occurrence_records.run(context, request)
+
+                case find_media_records.entrypoint.id:
+                    await find_media_records.run(context, request)
+
+                case count_occurrence_records.entrypoint.id:
+                    await count_occurrence_records.run(context, request)
+
+                case _:
+                    raise ValueError(f"Unknown entrypoint: {entrypoint}")
+
+        await run_with_langfuse_agent_trace(
+            request=request,
+            entrypoint=entrypoint,
+            params=params,
+            operation=dispatch,
+        )
 
 
 def create_app() -> Starlette:
-    dotenv.load_dotenv()
     agent = IDigBioAgent()
     app = build_agent_app(agent)
     return app
