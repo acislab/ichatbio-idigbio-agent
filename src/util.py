@@ -1,6 +1,7 @@
 import http.client
 import json
 import os
+from contextvars import ContextVar
 from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast, Any
 
 import instructor
@@ -17,14 +18,35 @@ from tenacity import RetryCallState
 from tenacity.stop import stop_base
 
 
-def update_llm_credentials(metadata: dict[str, Any] | None):
-    if metadata is None:
-        return
+temporary_llm_key: ContextVar[str | None] = ContextVar(
+    "temporary_llm_key",
+    default=None,
+)
 
-    if os.getenv("USE_LLM_PROXY") == "true":
-        match metadata:
-            case {"https://ichatbio.org/a2a/v1": {"temporary_llm_key": llm_key}}:
-                os.environ["OPENAI_API_KEY"] = llm_key
+
+def update_llm_credentials(metadata: dict[str, Any] | None):
+    match metadata:
+        case {"https://ichatbio.org/a2a/v1": {"temporary_llm_key": llm_key}}:
+            temporary_llm_key.set(llm_key)
+        case _:
+            temporary_llm_key.set(None)
+
+
+def get_llm_client_kwargs() -> dict[str, str]:
+    metadata_llm_key = temporary_llm_key.get()
+    use_proxy = os.getenv("USE_LLM_PROXY") == "true" or metadata_llm_key is not None
+
+    if use_proxy:
+        assert metadata_llm_key is not None, "Temporary LLM key is required for proxy mode"
+        proxy_base_url = os.getenv("PROXY_OPENAI_BASE_URL")
+        assert proxy_base_url is not None, "PROXY_OPENAI_BASE_URL environment variable must be set"
+        return {"api_key": metadata_llm_key, "base_url": proxy_base_url}
+
+    openai_api_key = os.getenv("OPENAI_API_KEY")
+    openai_base_url = os.getenv("OPENAI_BASE_URL")
+    assert openai_api_key is not None, "OPENAI_API_KEY environment variable must be set"
+    assert openai_base_url is not None, "OPENAI_BASE_URL environment variable must be set"
+    return {"api_key": openai_api_key, "base_url": openai_base_url}
 
 
 def _get_terminal_validation_error(e: Exception):
@@ -204,7 +226,9 @@ async def generate_search_parameters(
         request: str, system_prompt: str, llm_response_model: UModel
 ) -> tuple[str, UModel, str, str]:
     try:
-        client: AsyncInstructor = instructor.from_openai(AsyncOpenAI())
+        client: AsyncInstructor = instructor.from_openai(
+            AsyncOpenAI(**get_llm_client_kwargs())
+        )
         result = await client.chat.completions.create(
             model=os.getenv("LLM"),
             temperature=0,
