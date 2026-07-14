@@ -21,7 +21,7 @@ from tools.context import current_context
 from tools.count_occurrence_records import count_occurrence_records
 from tools.find_media_records import find_media_records
 from tools.find_occurrence_records import find_occurrence_records
-from util import run_with_langfuse_agent_trace, update_llm_credentials
+from util import run_with_langfuse_agent_trace, update_llm_credentials, get_llm_client_kwargs
 
 
 class IDigBioAgent(IChatBioAgent):
@@ -82,18 +82,22 @@ class IDigBioAgent(IChatBioAgent):
             current_context.reset(context_token)
 
     def __init__(self):
-        control_loop_prompt = (
+        self.control_loop_prompt = (
             importlib.resources.files()
             .joinpath("resources", "control_loop_prompt.md")
             .read_text()
         )
 
-        # Build a LangChain agent graph
-        self.langchain_agent = langchain.agents.create_agent(
+    def _build_langchain_agent(self):
+        llm_kwargs = get_llm_client_kwargs()
+        return langchain.agents.create_agent(
             model=ChatOpenAI(
                 model=os.getenv("LLM"),
+                streaming=True,
                 tool_choice="required",
                 openai_api_key=lambda: os.getenv("OPENAI_API_KEY"),
+                openai_api_key=llm_kwargs["api_key"],
+                openai_api_base=llm_kwargs["base_url"],
             ),
             tools=[
                 find_occurrence_records,
@@ -102,7 +106,7 @@ class IDigBioAgent(IChatBioAgent):
                 abort,
                 finish,
             ],
-            system_prompt=control_loop_prompt,
+            system_prompt=self.control_loop_prompt,
         )
 
 
