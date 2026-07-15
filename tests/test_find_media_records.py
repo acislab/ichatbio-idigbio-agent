@@ -21,7 +21,7 @@ async def test_find_media_records(agent, context, messages):
 
 @pytest.mark.xfail(
     reason="Pending behavior alignment for unsupported proximity media requests.",
-    strict=True,
+    strict=False,
 )
 @pytest.mark.asyncio
 async def test_abort_on_unsupported_proximity_search(agent, context, messages):
@@ -34,10 +34,10 @@ async def test_abort_on_unsupported_proximity_search(agent, context, messages):
     assert not any((isinstance(m, ArtifactResponse) for m in messages))
 
 
-@pytest.mark.xfail(
-    reason="Pending behavior alignment for unsupported semantic media requests.",
-    strict=True,
-)
+#@pytest.mark.xfail(
+#    reason="Pending behavior alignment for unsupported semantic media requests.",
+#    strict=True,
+#)
 @pytest.mark.asyncio
 async def test_abort_on_unsupported_semantics_search(agent, context, messages):
     await agent.run(

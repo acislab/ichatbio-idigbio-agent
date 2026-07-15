@@ -49,20 +49,16 @@ class IDigBioAgent(IChatBioAgent):
         params: BaseModel | None = None,
         metadata: dict[str, Any] | None = None,
     ):
-        """
-        Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
-        but must do so by calling tools. Only tools send response messages back iChatBio.
-        """
-        # If configured to use iChatBio as an LLM proxy, use access information provided in request metadata
         update_llm_credentials(metadata)
 
-        # Give tools access to the `context` object so they can send response messages
+        # Must be built after the request's ContextVar credentials are installed.
+        langchain_agent = self._build_langchain_agent()
+
         context_token = current_context.set(context)
 
         try:
             async def dispatch(langchain_config: dict[str, Any]):
-                # Run the graph with Langfuse's LangChain callback config
-                return await self.langchain_agent.ainvoke(
+                return await langchain_agent.ainvoke(
                     {
                         "messages": [
                             {"role": "user", "content": request},
@@ -77,10 +73,9 @@ class IDigBioAgent(IChatBioAgent):
                 params=params,
                 operation=dispatch,
             )
-
         finally:
             current_context.reset(context_token)
-
+        
     def __init__(self):
         self.control_loop_prompt = (
             importlib.resources.files()
@@ -95,7 +90,7 @@ class IDigBioAgent(IChatBioAgent):
                 model=os.getenv("LLM"),
                 streaming=True,
                 tool_choice="required",
-                openai_api_key=lambda: os.getenv("OPENAI_API_KEY"),
+                #openai_api_key=lambda: os.getenv("OPENAI_API_KEY"),
                 openai_api_key=llm_kwargs["api_key"],
                 openai_api_base=llm_kwargs["base_url"],
             ),
