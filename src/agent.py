@@ -1,6 +1,6 @@
 import importlib.resources
 import os
-from typing import override, Any
+from typing import Any, override
 
 import dotenv
 import langchain.agents
@@ -18,7 +18,7 @@ from tools.context import current_context
 from tools.count_occurrence_records import count_occurrence_records
 from tools.find_media_records import find_media_records
 from tools.find_occurrence_records import find_occurrence_records
-from util import update_llm_credentials, get_llm_client_kwargs
+from util import get_llm_credentials, set_llm_credentials
 
 
 class IDigBioAgent(IChatBioAgent):
@@ -50,10 +50,7 @@ class IDigBioAgent(IChatBioAgent):
         Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
         but must do so by calling tools. Only tools send response messages back iChatBio.
         """
-        # If configured to use iChatBio as an LLM proxy, use access information provided in request metadata
-        update_llm_credentials(metadata)
-
-        # Give tools access to the `context` object so they can send response messages
+        set_llm_credentials(metadata)
         current_context.set(context)
 
         # Run the graph
@@ -74,14 +71,14 @@ class IDigBioAgent(IChatBioAgent):
         )
 
     def _build_langchain_agent(self):
-        llm_kwargs = get_llm_client_kwargs()
+        llm_credentials = get_llm_credentials()
         return langchain.agents.create_agent(
             model=ChatOpenAI(
                 model=os.getenv("LLM"),
                 streaming=True,
                 tool_choice="required",
-                openai_api_key=llm_kwargs["api_key"],
-                openai_api_base=llm_kwargs["base_url"],
+                openai_api_key=llm_credentials["api_key"],
+                openai_api_base=llm_credentials["base_url"],
             ),
             tools=[
                 find_occurrence_records,

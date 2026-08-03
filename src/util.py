@@ -2,7 +2,7 @@ import http.client
 import json
 import os
 from contextvars import ContextVar
-from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast, Any
+from typing import Any, Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
 
 import instructor
 import requests
@@ -18,29 +18,33 @@ from tenacity import RetryCallState
 from tenacity.stop import stop_base
 
 
-temporary_llm_key: ContextVar[str | None] = ContextVar(
-    "temporary_llm_key",
+request_llm_credentials: ContextVar[dict[str, str] | None] = ContextVar(
+    "request_llm_credentials",
     default=None,
 )
 
 
-def update_llm_credentials(metadata: dict[str, Any] | None):
-    match metadata:
-        case {"https://ichatbio.org/a2a/v1": {"temporary_llm_key": llm_key}}:
-            temporary_llm_key.set(llm_key)
-        case _:
-            temporary_llm_key.set(None)
+def set_llm_credentials(metadata: dict[str, Any] | None) -> None:
+    use_llm_proxy = os.environ["USE_LLM_PROXY"]
+    assert use_llm_proxy in {"true", "false"}
+    if use_llm_proxy == "false":
+        request_llm_credentials.set(None)
+        return
+
+    assert metadata is not None
+    proxy_metadata = metadata["https://ichatbio.org/a2a/v1"]
+    assert proxy_metadata["temporary_llm_key"] is not None, "temporary_llm_key is required but None was provided."
+    assert proxy_metadata["ichatbio_base_url"] is not None, "ichatbio_base_url is required but None was provided."
+    request_llm_credentials.set({
+        "api_key": proxy_metadata["temporary_llm_key"],
+        "base_url": f"{proxy_metadata['ichatbio_base_url'].rstrip('/')}/llm",
+    })
 
 
-def get_llm_client_kwargs() -> dict[str, str]:
-    metadata_llm_key = temporary_llm_key.get()
-    use_proxy = os.getenv("USE_LLM_PROXY") == "true" or metadata_llm_key is not None
-
-    if use_proxy:
-        assert metadata_llm_key is not None, "Temporary LLM key is required for proxy mode"
-        proxy_base_url = os.getenv("PROXY_OPENAI_BASE_URL")
-        assert proxy_base_url is not None, "PROXY_OPENAI_BASE_URL environment variable must be set"
-        return {"api_key": metadata_llm_key, "base_url": proxy_base_url}
+def get_llm_credentials() -> dict[str, str]:
+    credentials = request_llm_credentials.get()
+    if credentials is not None:
+        return credentials
 
     openai_api_key = os.getenv("OPENAI_API_KEY")
     openai_base_url = os.getenv("OPENAI_BASE_URL")
@@ -227,7 +231,7 @@ async def generate_search_parameters(
 ) -> tuple[str, UModel, str, str]:
     try:
         client: AsyncInstructor = instructor.from_openai(
-            AsyncOpenAI(**get_llm_client_kwargs())
+            AsyncOpenAI(**get_llm_credentials())
         )
         result = await client.chat.completions.create(
             model=os.getenv("LLM"),
