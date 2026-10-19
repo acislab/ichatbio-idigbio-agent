@@ -1,5 +1,4 @@
 import importlib.resources
-import os
 from typing import Any, override
 
 import dotenv
@@ -8,15 +7,13 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
 from ichatbio.types import AgentCard, AgentEntrypoint
-from langchain.agents import AgentState
-from langchain.agents.middleware import before_model
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolRuntime
-from langgraph.runtime import Runtime
 from pydantic import BaseModel
 from starlette.applications import Starlette
 
+from app_config import settings, reload
 from tools.context import current_context
 from tools.count_occurrence_records import count_occurrence_records
 from tools.find_media_records import find_media_records
@@ -76,7 +73,7 @@ class IDigBioAgent(IChatBioAgent):
     def _build_langchain_agent(self):
         return langchain.agents.create_agent(
             model=ChatOpenAI(
-                model=os.getenv("LLM"),
+                model=settings.llm,
                 streaming=True,
                 tool_choice="required",
                 base_url=llm_access.get().base_url,
@@ -107,10 +104,7 @@ async def finish(message: str, runtime: ToolRuntime):
 
 def create_app() -> Starlette:
     dotenv.load_dotenv()
-
-    if os.getenv("LLM") is None:
-        raise ValueError("LLM environment variable must be set")
-
+    reload()
     agent = IDigBioAgent()
     app = build_agent_app(agent)
     return app

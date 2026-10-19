@@ -17,17 +17,19 @@ from tenacity import AsyncRetrying
 from tenacity import RetryCallState
 from tenacity.stop import stop_base
 
+from app_config import settings
+
 
 class LLMAccess(BaseModel):
-    base_url: str = os.getenv("OPENAI_BASE_URL")
-    api_key: str = os.getenv("OPENAI_API_KEY")
+    base_url: str = settings.llm_base_url
+    api_key: str = settings.llm_api_key
 
 
 llm_access: ContextVar[LLMAccess] = ContextVar("request_llm_credentials")
 
 
 def set_llm_credentials(metadata: dict | None):
-    if metadata and "https://ichatbio.org/a2a/v1" in metadata and os.getenv("USE_LLM_PROXY") != "false":
+    if metadata and "https://ichatbio.org/a2a/v1" in metadata and settings.use_llm_proxy:
         proxy_metadata = metadata.get("https://ichatbio.org/a2a/v1", {})
         base_url = proxy_metadata.get("ichatbio_base_url", "")
         api_key = proxy_metadata.get("temporary_llm_key", "")
@@ -36,12 +38,10 @@ def set_llm_credentials(metadata: dict | None):
                 f"Failed to apply LLM proxy configuration; missing required fields. Received configuration: {proxy_metadata}"
             )
     else:
-        base_url = os.getenv("OPENAI_BASE_URL", "")
-        api_key = os.getenv("OPENAI_API_KEY", "")
-        if not (base_url and api_key):
-            raise ValueError(
-                f"LLM proxy not used and LLM API environment variables not set (OPENAI_BASE_URL={base_url}, OPENAI_API_KEY={api_key})"
-            )
+        base_url = settings.llm_base_url
+        api_key = settings.llm_api_key
+        if not api_key:
+            raise ValueError(f"Missing LLM API key environment variable. Please set OPENAI_API_KEY or LLM_API_KEY!")
 
     llm_access.set(LLMAccess(base_url=base_url, api_key=api_key))
 
@@ -227,7 +227,7 @@ async def generate_search_parameters(
             AsyncOpenAI(base_url=llm_access.get().base_url, api_key=llm_access.get().api_key)
         )
         result = await client.chat.completions.create(
-            model=os.getenv("LLM"),
+            model=settings.llm,
             temperature=0,
             response_model=llm_response_model,
             messages=[

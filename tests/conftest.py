@@ -2,6 +2,7 @@ import dotenv
 import langchain_core.globals
 import pytest_asyncio
 
+import app_config
 from agent import IDigBioAgent
 
 
@@ -9,4 +10,5 @@ from agent import IDigBioAgent
 def agent():
     langchain_core.globals.set_debug(True)
     dotenv.load_dotenv()
+    app_config.reload()
     return IDigBioAgent()
