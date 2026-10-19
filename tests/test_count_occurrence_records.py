@@ -9,7 +9,7 @@ async def test_count_occurrence_records(agent, context, messages):
     assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
     assert artifacts
-    artifact = artifacts[0]
+    artifact = artifacts[-1]
     assert artifact
     assert artifact.metadata["total_record_count"] > 0
     assert len(artifacts) == 1
@@ -22,7 +22,7 @@ async def test_count_species(agent, context, messages):
     assert messages[0] == ProcessBeginResponse(summary="Requesting iDigBio statistics")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
     assert artifacts
-    artifact = artifacts[0]
+    artifact = artifacts[-1]
     assert artifact
     assert artifact.uris[0] == (
         "https://search.idigbio.org/v2/summary/top/records?"

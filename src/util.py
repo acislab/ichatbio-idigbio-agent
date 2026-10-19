@@ -1,6 +1,5 @@
 import http.client
 import json
-import os
 from contextvars import ContextVar
 from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
 
@@ -226,7 +225,7 @@ async def generate_search_parameters(
         client: AsyncInstructor = instructor.from_openai(
             AsyncOpenAI(base_url=llm_access.get().base_url, api_key=llm_access.get().api_key)
         )
-        result = await client.chat.completions.create(
+        result = await client.create(
             model=settings.llm,
             temperature=0,
             response_model=llm_response_model,
@@ -235,6 +234,7 @@ async def generate_search_parameters(
                 {"role": "user", "content": request},
             ],
             max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
+            reasoning_effort=settings.reasoning_effort
         )
     except InstructorRetryException as e:
         raise AIGenerationException(e)

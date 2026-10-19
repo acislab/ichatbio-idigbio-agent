@@ -78,6 +78,8 @@ class IDigBioAgent(IChatBioAgent):
                 tool_choice="required",
                 base_url=llm_access.get().base_url,
                 api_key=llm_access.get().api_key,
+                reasoning_effort=settings.reasoning_effort,
+                temperature=0
             ),
             tools=[
                 find_occurrence_records,

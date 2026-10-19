@@ -9,7 +9,7 @@ async def test_find_media_records(agent, context, messages):
     assert messages[0] == ProcessBeginResponse(summary="Searching iDigBio media records")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
     assert artifacts
-    artifact = artifacts[0]
+    artifact = artifacts[-1]
     assert artifact
     assert artifact.metadata["retrieved_record_count"] > 0
 
