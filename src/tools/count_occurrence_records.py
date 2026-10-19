@@ -1,3 +1,4 @@
+import functools
 import http.client
 import importlib.resources
 
@@ -92,9 +93,8 @@ async def count_occurrence_records(
         if not success:
             await process.log(f"Response code: {response_code} - something went wrong!")
             return
-        stripped_top_fields = top_fields.replace(".keyword", "") # strip elasticsearch subfield identifiers ie .keyword
+        stripped_top_fields = top_fields.replace(".keyword", "")  # strip elasticsearch subfield identifiers ie .keyword
         total_unique_count = len(top_counts.get(stripped_top_fields, []))
-        
 
         await context.reply(
             f'The API query found {total_unique_count} unique "{stripped_top_fields}" values across {total_record_count}'
@@ -151,6 +151,7 @@ def remap_top_fields(top_fields):
     return top_fields
 
 
+@functools.cache
 def get_system_prompt():
     query_format_doc = (
         importlib.resources.files()

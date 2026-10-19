@@ -1,3 +1,4 @@
+import functools
 import importlib.resources
 
 from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
@@ -102,6 +103,7 @@ async def find_media_records(
             )
 
 
+@functools.cache
 def get_system_prompt():
     query_format_doc = (
         importlib.resources.files()
