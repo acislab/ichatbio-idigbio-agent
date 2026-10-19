@@ -4,7 +4,7 @@ from ichatbio.agent_response import ArtifactResponse, ProcessBeginResponse
 
 @pytest.mark.asyncio
 async def test_find_occurrence_records(agent, context, messages):
-    await agent.run(context, "Find records of Rattus rattus", "find_occurrence_records")
+    await agent.run(context, "Find records of Rattus rattus", "")
 
     assert messages[0] == ProcessBeginResponse(summary="Searching iDigBio occurrence records")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
@@ -17,10 +17,6 @@ async def test_find_occurrence_records(agent, context, messages):
 
 @pytest.mark.asyncio
 async def test_abort_on_unsupported_search(agent, context, messages):
-    await agent.run(
-        context,
-        "Find Rattus rattus occurrences near Naja naja occurrences",
-        "find_occurrence_records"
-    )
+    await agent.run(context, "Find Rattus rattus occurrences near Naja naja occurrences", "")
 
     assert not [m for m in messages if isinstance(m, ArtifactResponse)]

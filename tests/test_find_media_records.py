@@ -21,21 +21,13 @@ async def test_find_media_records(agent, context, messages):
 
 @pytest.mark.asyncio
 async def test_abort_on_unsupported_proximity_search(agent, context, messages):
-    await agent.run(
-        context,
-        "Find media for Rattus rattus occurrences near Naja naja occurrences",
-        "find_media_records"
-    )
+    await agent.run(context, "Find media for Rattus rattus occurrences near Naja naja occurrences", "")
 
     assert not any((isinstance(m, ArtifactResponse) for m in messages))
 
 
 @pytest.mark.asyncio
 async def test_abort_on_unsupported_semantics_search(agent, context, messages):
-    await agent.run(
-        context,
-        "Find pictures of blue butterflies",
-        "find_media_records"
-    )
+    await agent.run(context, "Find pictures of blue butterflies", "")
 
     assert not any((isinstance(m, ArtifactResponse) for m in messages))

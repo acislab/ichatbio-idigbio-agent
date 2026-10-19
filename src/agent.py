@@ -8,9 +8,12 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
 from ichatbio.types import AgentCard, AgentEntrypoint
+from langchain.agents import AgentState
+from langchain.agents.middleware import before_model
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolRuntime
+from langgraph.runtime import Runtime
 from pydantic import BaseModel
 from starlette.applications import Starlette
 
@@ -18,7 +21,7 @@ from tools.context import current_context
 from tools.count_occurrence_records import count_occurrence_records
 from tools.find_media_records import find_media_records
 from tools.find_occurrence_records import find_occurrence_records
-from util import get_llm_credentials, set_llm_credentials
+from util import set_llm_credentials, llm_access
 
 
 class IDigBioAgent(IChatBioAgent):
@@ -39,12 +42,12 @@ class IDigBioAgent(IChatBioAgent):
 
     @override
     async def run(
-        self,
-        context: ResponseContext,
-        request: str,
-        entrypoint: str,
-        params: BaseModel | None = None,
-        metadata: dict[str, Any] | None = None
+            self,
+            context: ResponseContext,
+            request: str,
+            entrypoint: str,
+            params: BaseModel | None = None,
+            metadata: dict[str, Any] | None = None
     ):
         """
         Executes a LangChain agent graph with `request` as input. The agent does not produce text responses directly,
@@ -71,14 +74,13 @@ class IDigBioAgent(IChatBioAgent):
         )
 
     def _build_langchain_agent(self):
-        llm_credentials = get_llm_credentials()
         return langchain.agents.create_agent(
             model=ChatOpenAI(
                 model=os.getenv("LLM"),
                 streaming=True,
                 tool_choice="required",
-                openai_api_key=llm_credentials["api_key"],
-                openai_api_base=llm_credentials["base_url"],
+                base_url=llm_access.get().base_url,
+                api_key=llm_access.get().api_key,
             ),
             tools=[
                 find_occurrence_records,
@@ -87,7 +89,7 @@ class IDigBioAgent(IChatBioAgent):
                 abort,
                 finish
             ],
-            system_prompt=self.control_loop_prompt,
+            system_prompt=self.control_loop_prompt
         )
 
 

@@ -2,7 +2,7 @@ import http.client
 import json
 import os
 from contextvars import ContextVar
-from typing import Any, Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
+from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
 
 import instructor
 import requests
@@ -18,39 +18,32 @@ from tenacity import RetryCallState
 from tenacity.stop import stop_base
 
 
-request_llm_credentials: ContextVar[dict[str, str] | None] = ContextVar(
-    "request_llm_credentials",
-    default=None,
-)
+class LLMAccess(BaseModel):
+    base_url: str = os.getenv("OPENAI_BASE_URL")
+    api_key: str = os.getenv("OPENAI_API_KEY")
 
 
-def set_llm_credentials(metadata: dict[str, Any] | None) -> None:
-    use_llm_proxy = os.environ["USE_LLM_PROXY"]
-    assert use_llm_proxy in {"true", "false"}
-    if use_llm_proxy == "false":
-        request_llm_credentials.set(None)
-        return
-
-    assert metadata is not None
-    proxy_metadata = metadata["https://ichatbio.org/a2a/v1"]
-    assert proxy_metadata["temporary_llm_key"] is not None, "temporary_llm_key is required but None was provided."
-    assert proxy_metadata["ichatbio_base_url"] is not None, "ichatbio_base_url is required but None was provided."
-    request_llm_credentials.set({
-        "api_key": proxy_metadata["temporary_llm_key"],
-        "base_url": f"{proxy_metadata['ichatbio_base_url'].rstrip('/')}/llm",
-    })
+llm_access: ContextVar[LLMAccess] = ContextVar("request_llm_credentials")
 
 
-def get_llm_credentials() -> dict[str, str]:
-    credentials = request_llm_credentials.get()
-    if credentials is not None:
-        return credentials
+def set_llm_credentials(metadata: dict | None):
+    if metadata and "https://ichatbio.org/a2a/v1" in metadata and os.getenv("USE_LLM_PROXY") != "false":
+        proxy_metadata = metadata.get("https://ichatbio.org/a2a/v1", {})
+        base_url = proxy_metadata.get("ichatbio_base_url", "")
+        api_key = proxy_metadata.get("temporary_llm_key", "")
+        if not (base_url and api_key):
+            raise ValueError(
+                f"Failed to apply LLM proxy configuration; missing required fields. Received configuration: {proxy_metadata}"
+            )
+    else:
+        base_url = os.getenv("OPENAI_BASE_URL", "")
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        if not (base_url and api_key):
+            raise ValueError(
+                f"LLM proxy not used and LLM API environment variables not set (OPENAI_BASE_URL={base_url}, OPENAI_API_KEY={api_key})"
+            )
 
-    openai_api_key = os.getenv("OPENAI_API_KEY")
-    openai_base_url = os.getenv("OPENAI_BASE_URL")
-    assert openai_api_key is not None, "OPENAI_API_KEY environment variable must be set"
-    assert openai_base_url is not None, "OPENAI_BASE_URL environment variable must be set"
-    return {"api_key": openai_api_key, "base_url": openai_base_url}
+    llm_access.set(LLMAccess(base_url=base_url, api_key=api_key))
 
 
 def _get_terminal_validation_error(e: Exception):
@@ -231,7 +224,7 @@ async def generate_search_parameters(
 ) -> tuple[str, UModel, str, str]:
     try:
         client: AsyncInstructor = instructor.from_openai(
-            AsyncOpenAI(**get_llm_credentials())
+            AsyncOpenAI(base_url=llm_access.get().base_url, api_key=llm_access.get().api_key)
         )
         result = await client.chat.completions.create(
             model=os.getenv("LLM"),
