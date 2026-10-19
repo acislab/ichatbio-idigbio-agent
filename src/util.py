@@ -7,6 +7,7 @@ import instructor
 import requests
 from instructor import AsyncInstructor
 from instructor.core import InstructorRetryException
+from langchain_core.messages import BaseMessage, convert_to_openai_messages
 from openai import AsyncOpenAI
 from pydantic import BaseModel
 from pydantic import Field
@@ -219,18 +220,20 @@ UModel = TypeVar("UModel", bound=BaseModel)
 
 
 async def generate_search_parameters(
-        request: str, system_prompt: str, llm_response_model: UModel
+        request: str, system_prompt: str, llm_response_model: UModel, history: list[BaseMessage]
 ) -> tuple[str, UModel, str, str]:
     try:
         client: AsyncInstructor = instructor.from_openai(
             AsyncOpenAI(base_url=llm_access.get().base_url, api_key=llm_access.get().api_key)
         )
+        history_as_context = convert_to_openai_messages(history)
         result = await client.create(
             model=settings.llm,
             temperature=0,
             response_model=llm_response_model,
             messages=[
                 {"role": "system", "content": system_prompt},
+                {"role": "user", "content": f"Messages exchanged before this request: {history_as_context}"},
                 {"role": "user", "content": request},
             ],
             max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),

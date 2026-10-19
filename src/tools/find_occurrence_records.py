@@ -2,11 +2,12 @@ import functools
 import importlib.resources
 
 from ichatbio.agent_response import IChatBioAgentProcess
+from langgraph.prebuilt import ToolRuntime
 
-from tools.util import context_tool
 from prompt import make_system_prompt
 from schema import IDBRecordsQuerySchema, IDigBioRecordsApiParameters
 from tools.context import current_context
+from tools.util import context_tool
 from util import (
     query_idigbio_api,
     make_idigbio_api_url,
@@ -31,7 +32,8 @@ LLMResponseModel = make_llm_response_model(IDigBioRecordsApiParameters)
 
 @context_tool(description=description)
 async def find_occurrence_records(
-        request: str
+        request: str,
+        runtime: ToolRuntime
 ):
     """
     Generates a sequence of messages that are returned one-by-one to iChatBio in response to the request, logging the
@@ -46,7 +48,7 @@ async def find_occurrence_records(
         try:
             plan, params, artifact_description, generation_warnings = (
                 await generate_search_parameters(
-                    request, get_system_prompt(), LLMResponseModel
+                    request, get_system_prompt(), LLMResponseModel, runtime.state.get("messages", [])
                 )
             )
         except AIGenerationException as e:

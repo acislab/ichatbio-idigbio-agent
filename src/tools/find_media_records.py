@@ -1,8 +1,9 @@
 import functools
 import importlib.resources
 
-from ichatbio.agent_response import ResponseContext, IChatBioAgentProcess
-from ichatbio.types import AgentEntrypoint
+from ichatbio.agent_response import IChatBioAgentProcess
+from langgraph.prebuilt import ToolRuntime
+
 from prompt import make_system_prompt
 from schema import IDigBioMediaApiParameters, IDBRecordsQuerySchema, IDBMediaQuerySchema
 from tools.context import current_context
@@ -32,7 +33,8 @@ LLMResponseModel = make_llm_response_model(IDigBioMediaApiParameters)
 
 @context_tool(description=description)
 async def find_media_records(
-        request: str
+        request: str,
+        runtime: ToolRuntime
 ):
     context = current_context.get()
     async with context.begin_process("Searching iDigBio media records") as process:
@@ -43,7 +45,7 @@ async def find_media_records(
         try:
             plan, params, artifact_description, generation_warnings = (
                 await generate_search_parameters(
-                    request, get_system_prompt(), LLMResponseModel
+                    request, get_system_prompt(), LLMResponseModel, runtime.state.get("messages", [])
                 )
             )
         except AIGenerationException as e:

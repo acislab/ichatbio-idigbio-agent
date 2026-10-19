@@ -4,6 +4,7 @@ import importlib.resources
 
 import requests
 from ichatbio.agent_response import IChatBioAgentProcess
+from langgraph.prebuilt import ToolRuntime
 
 import util
 from prompt import make_system_prompt
@@ -41,7 +42,8 @@ LLMResponseModel = make_llm_response_model(IDigBioSummaryApiParameters)
 
 @context_tool(description=description)
 async def count_occurrence_records(
-        request: str
+        request: str,
+        runtime: ToolRuntime
 ):
     context = current_context.get()
     async with context.begin_process("Requesting iDigBio statistics") as process:
@@ -51,7 +53,7 @@ async def count_occurrence_records(
         try:
             plan, params, artifact_description, generation_warnings = (
                 await util.generate_search_parameters(
-                    request, get_system_prompt(), LLMResponseModel
+                    request, get_system_prompt(), LLMResponseModel, runtime.state.get("messages", [])
                 )
             )
         except AIGenerationException as e:
