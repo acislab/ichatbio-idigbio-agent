@@ -73,12 +73,12 @@ class IDigBioAgent(IChatBioAgent):
     def _build_langchain_agent(self):
         return langchain.agents.create_agent(
             model=ChatOpenAI(
-                model=settings.llm,
+                model=settings().llm,
                 streaming=True,
                 tool_choice="required",
                 base_url=llm_access.get().base_url,
                 api_key=llm_access.get().api_key,
-                reasoning_effort=settings.reasoning_effort,
+                reasoning_effort=settings().reasoning_effort,
                 temperature=0
             ),
             tools=[

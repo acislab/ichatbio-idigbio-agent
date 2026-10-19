@@ -21,15 +21,15 @@ from app_config import settings
 
 
 class LLMAccess(BaseModel):
-    base_url: str = settings.llm_base_url
-    api_key: str = settings.llm_api_key
+    base_url: str = settings().llm_base_url
+    api_key: str = settings().llm_api_key
 
 
 llm_access: ContextVar[LLMAccess] = ContextVar("request_llm_credentials")
 
 
 def set_llm_credentials(metadata: dict | None):
-    if metadata and "https://ichatbio.org/a2a/v1" in metadata and settings.use_llm_proxy:
+    if metadata and "https://ichatbio.org/a2a/v1" in metadata and settings().use_llm_proxy:
         proxy_metadata = metadata.get("https://ichatbio.org/a2a/v1", {})
         base_url = proxy_metadata.get("ichatbio_base_url", "")
         api_key = proxy_metadata.get("temporary_llm_key", "")
@@ -38,8 +38,8 @@ def set_llm_credentials(metadata: dict | None):
                 f"Failed to apply LLM proxy configuration; missing required fields. Received configuration: {proxy_metadata}"
             )
     else:
-        base_url = settings.llm_base_url
-        api_key = settings.llm_api_key
+        base_url = settings().llm_base_url
+        api_key = settings().llm_api_key
         if not api_key:
             raise ValueError(f"Missing LLM API key environment variable. Please set OPENAI_API_KEY or LLM_API_KEY!")
 
@@ -228,7 +228,7 @@ async def generate_search_parameters(
         )
         history_as_context = convert_to_openai_messages(history)
         result = await client.create(
-            model=settings.llm,
+            model=settings().llm,
             temperature=0,
             response_model=llm_response_model,
             messages=[
@@ -237,7 +237,7 @@ async def generate_search_parameters(
                 {"role": "user", "content": request},
             ],
             max_retries=AsyncRetrying(stop=StopOnTerminalErrorOrMaxAttempts(3)),
-            reasoning_effort=settings.reasoning_effort
+            reasoning_effort=settings().reasoning_effort
         )
     except InstructorRetryException as e:
         raise AIGenerationException(e)
