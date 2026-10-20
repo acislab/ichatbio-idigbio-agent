@@ -33,10 +33,14 @@ def set_llm_credentials(metadata: dict | None):
         proxy_metadata = metadata.get("https://ichatbio.org/a2a/v1", {})
         base_url = proxy_metadata.get("ichatbio_base_url", "")
         api_key = proxy_metadata.get("temporary_llm_key", "")
+
         if not (base_url and api_key):
             raise ValueError(
                 f"Failed to apply LLM proxy configuration; missing required fields. Received configuration: {proxy_metadata}"
             )
+
+        # TODO: the backend should directly send the proxy URL
+        base_url = base_url.rstrip("/") + "/llm"
     else:
         base_url = settings().llm_base_url
         api_key = settings().llm_api_key
