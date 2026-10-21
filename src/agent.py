@@ -65,15 +65,14 @@ class IDigBioAgent(IChatBioAgent):
             }
         )
 
-    def __init__(self):
-        self.control_loop_prompt = files().joinpath("resources", "control_loop_prompt.md").read_text()
-
     def _build_langchain_agent(self):
         @after_model
         async def share_text_messages(state, runtime):
             message = state["messages"][-1]
             if isinstance(message, AIMessage) and isinstance(message.content, str):
                 await current_context.get().reply(message.content)
+
+        control_loop_prompt = files().joinpath("resources", "control_loop_prompt.md").read_text()
 
         return langchain.agents.create_agent(
             model=ChatOpenAI(
@@ -93,7 +92,7 @@ class IDigBioAgent(IChatBioAgent):
                 finish
             ],
             middleware=[share_text_messages],
-            system_prompt=self.control_loop_prompt
+            system_prompt=control_loop_prompt
         )
 
 
