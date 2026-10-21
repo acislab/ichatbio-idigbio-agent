@@ -70,7 +70,7 @@ class IDigBioAgent(IChatBioAgent):
 
     def _build_langchain_agent(self):
         @after_model
-        async def share_text_messages(state):
+        async def share_text_messages(state, runtime):
             message = state["messages"][-1]
             if isinstance(message, AIMessage) and isinstance(message.content, str):
                 await current_context.get().reply(message.content)
@@ -79,11 +79,11 @@ class IDigBioAgent(IChatBioAgent):
             model=ChatOpenAI(
                 model=settings().llm,
                 streaming=True,
-                tool_choice="required",
                 base_url=llm_access.get().base_url,
                 api_key=llm_access.get().api_key,
                 reasoning_effort=settings().reasoning_effort,
-                temperature=0
+                temperature=0,
+                model_kwargs={"tool_choice": "required"}
             ),
             tools=[
                 find_occurrence_records,
