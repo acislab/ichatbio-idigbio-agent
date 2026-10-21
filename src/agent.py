@@ -7,6 +7,8 @@ from ichatbio.agent import IChatBioAgent
 from ichatbio.agent_response import ResponseContext
 from ichatbio.server import build_agent_app
 from ichatbio.types import AgentCard, AgentEntrypoint
+from langchain.agents.middleware import after_model
+from langchain_core.messages import AIMessage
 from langchain_core.tools import tool
 from langchain_openai import ChatOpenAI
 from langgraph.prebuilt import ToolRuntime
@@ -67,6 +69,12 @@ class IDigBioAgent(IChatBioAgent):
         self.control_loop_prompt = files().joinpath("resources", "control_loop_prompt.md").read_text()
 
     def _build_langchain_agent(self):
+        @after_model
+        async def share_text_messages(state):
+            message = state["messages"][-1]
+            if isinstance(message, AIMessage) and isinstance(message.content, str):
+                await current_context.get().reply(message.content)
+
         return langchain.agents.create_agent(
             model=ChatOpenAI(
                 model=settings().llm,
@@ -84,6 +92,7 @@ class IDigBioAgent(IChatBioAgent):
                 abort,
                 finish
             ],
+            middleware=[share_text_messages],
             system_prompt=self.control_loop_prompt
         )
 
