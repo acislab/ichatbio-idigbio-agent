@@ -523,12 +523,11 @@ class IDigBioSummaryApiParameters(BaseModel):
     This schema represents the output containing the LLM-generated iDigBio query.
     """
 
-    top_fields: str = Field(
-        description="The field to break down record counts by. Defaults to "
+    top_fields: String = Field(
+        description="The fields to break down record counts by. Defaults to "
         '"scientificname". For example, if top_fields is "country", '
         "the iDigBio API will find the 10 countries with the most records "
-        "matching the search parameters. Only one top field may be "
-        "specified.",
+        "matching the search parameters. More granular breakdowns can be achieved using multiple top fields. For example, [\"country\",\"scientificname\"] would provide unique taxa and their occurrence counts *per country*."
     )
     count: Optional[int] = Field(
         5000,

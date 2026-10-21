@@ -92,6 +92,8 @@ def url_encode_inner(x):
                 "{" + ",".join([f'"{k}":{url_encode_inner(v)}' for k, v in x.items()]) + "}"
         )
     elif type(x) == list:
+        if len(x) == 1:
+            return url_encode_inner(x[0])
         return "[" + ",".join([url_encode_inner(v) for v in x]) + "]"
     elif type(x) == str:
         return f'"{x}"'

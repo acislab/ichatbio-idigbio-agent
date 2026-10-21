@@ -71,8 +71,9 @@ async def count_occurrence_records(
 
         # Call the API
 
-        json_params = params.model_dump(exclude_none=True, by_alias=True)
         top_fields = remap_top_fields(params.top_fields)
+        params.top_fields = top_fields
+        json_params = params.model_dump(exclude_none=True, by_alias=True)
 
         await process.log(f"Generated search parameters", data=json_params)
 
@@ -95,15 +96,15 @@ async def count_occurrence_records(
         if not success:
             await process.log(f"Response code: {response_code} - something went wrong!")
             return
-        stripped_top_fields = top_fields.replace(".keyword", "")  # strip elasticsearch subfield identifiers ie .keyword
-        total_unique_count = len(top_counts.get(stripped_top_fields, []))
+
+        total_unique_count = get_number_of_retrieved_counts(top_fields, top_counts)
 
         await context.reply(
-            f'The API query found {total_unique_count} unique "{stripped_top_fields}" values across {total_record_count}'
+            f'The API query found {total_unique_count} unique "{top_fields}" record counts across {total_record_count}'
             " matching records in iDigBio"
         )
         await process.log(
-            f'[View raw counts of {total_unique_count} unique "{stripped_top_fields}" values across {total_record_count} records]({full_summary_api_url})'
+            f'[View raw counts of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
         if total_record_count > 0:
@@ -142,15 +143,23 @@ FIELD_REPLACEMENTS = {
 }
 
 
-def remap_top_fields(top_fields):
+def remap_top_fields(top_fields: str | list[str]) -> list[str]:
     # Some fields are indexed by word instead of full text. This is not useful for many fields. Use the
     # keyword versions of these fields instead.
-    if type(top_fields) is str:
-        top_fields = FIELD_REPLACEMENTS.get(top_fields, top_fields)
-    elif type(top_fields) is list:
-        top_fields = [FIELD_REPLACEMENTS.get(field, field) for field in top_fields]
+    if isinstance(top_fields, str):
+        return [FIELD_REPLACEMENTS.get(top_fields, top_fields)]
+    elif isinstance(top_fields, list):
+        return [FIELD_REPLACEMENTS.get(field, field) for field in top_fields]
 
-    return top_fields
+    raise ValueError(f"Unexpected value for top_fields (top_fields={top_fields}")
+
+
+def get_number_of_retrieved_counts(top_fields: list[str], top_counts: dict) -> int:
+    if not top_fields:
+        return 1
+
+    group_counts = top_counts[top_fields[0]]
+    return sum((get_number_of_retrieved_counts(top_fields[1:], group_counts[group]) for group in group_counts))
 
 
 @functools.cache
