@@ -527,7 +527,8 @@ class IDigBioSummaryApiParameters(BaseModel):
         description="The fields to break down record counts by. Defaults to "
         '"scientificname". For example, if top_fields is "country", '
         "the iDigBio API will find the 10 countries with the most records "
-        "matching the search parameters. More granular breakdowns can be achieved using multiple top fields. For example, [\"country\",\"scientificname\"] would provide unique taxa and their occurrence counts *per country*."
+        "matching the search parameters. More granular breakdowns can be achieved using multiple top fields. For example, [\"country\",\"scientificname\"] would provide unique taxa and their occurrence counts *per country*.",
+        min_length=1
     )
     count: Optional[int] = Field(
         5000,

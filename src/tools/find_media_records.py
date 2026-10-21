@@ -1,5 +1,5 @@
 import functools
-import importlib.resources
+from importlib.resources import files
 
 from ichatbio.agent_response import IChatBioAgentProcess
 from langgraph.prebuilt import ToolRuntime
@@ -26,7 +26,6 @@ Returns:
 - A URL to view related occurrence records in the iDigBio Search Portal
 - An artifact containing the retrieved media records
 """
-
 
 LLMResponseModel = make_llm_response_model(IDigBioMediaApiParameters)
 
@@ -107,12 +106,6 @@ async def find_media_records(
 
 @functools.cache
 def get_system_prompt():
-    query_format_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "records_query_format.md")
-        .read_text()
-    )
-
     examples = {
         "Homo sapiens": LLMResponseModel(
             plan="The request only specifies occurrence-related information, I will search using rq fields. The name doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
@@ -169,8 +162,12 @@ def get_system_prompt():
         ),
     }
 
+    query_format_doc = files().joinpath("..", "resources", "records_query_format.md").read_text()
+    tips_doc = files().joinpath("..", "resources", "occurrence_records_tips.md").read_text()
+
     return make_system_prompt(
         preamble="You translate user requests into parameters for the iDigBio media search API.",
         query_format_doc=query_format_doc,
+        tips=tips_doc,
         examples=examples,
     )

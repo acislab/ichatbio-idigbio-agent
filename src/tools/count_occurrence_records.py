@@ -1,6 +1,6 @@
 import functools
 import http.client
-import importlib.resources
+from importlib.resources import files
 
 import requests
 from ichatbio.agent_response import IChatBioAgentProcess
@@ -107,12 +107,13 @@ async def count_occurrence_records(
             f'[View raw counts of {total_unique_count} unique "{top_fields}" values across {total_record_count} records]({full_summary_api_url})'
         )
 
-        if total_record_count > 0:
-            if total_unique_count >= MAX_COUNT:
+        first_field_unique_count = len(top_counts.get(top_fields[0], {}))
+        if first_field_unique_count:
+            if first_field_unique_count >= MAX_COUNT:
                 await process.log(
                     f"Warning: Maximum count reached! iDigBio's Summary API can not return more than {MAX_COUNT} unique"
-                    f" values. There are probably more than that. Consider narrowing your search parameters if you need"
-                    f" exact counts."
+                    f" values for each level of the breakdown. Consider narrowing your search parameters if you need"
+                    f" all unique values."
                 )
 
             await process.create_artifact(
@@ -164,12 +165,6 @@ def get_number_of_retrieved_counts(top_fields: list[str], top_counts: dict) -> i
 
 @functools.cache
 def get_system_prompt():
-    query_format_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "records_query_format.md")
-        .read_text()
-    )
-
     examples = {
         "Number of species of Aves": LLMResponseModel(
             plan='Aves is a taxonomic class, so I will search by class. The request wants the number of unique species in Aves, so I will use "scientificname" as top_fields. Because scientificname can also match ranks besides species, so I will also limit the taxonrank (the rank of the scientific name in each record) to species',
@@ -215,8 +210,12 @@ def get_system_prompt():
         ),
     }
 
+    query_format_doc = files().joinpath("..", "resources", "records_query_format.md").read_text()
+    tips_doc = files().joinpath("..", "resources", "occurrence_records_tips.md").read_text()
+
     return make_system_prompt(
         preamble="You translate user requests into parameters for iDigBio's occurrence records Summary API.",
         query_format_doc=query_format_doc,
+        tips=tips_doc,
         examples=examples,
     )

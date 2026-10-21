@@ -1,5 +1,6 @@
 import functools
 import importlib.resources
+from importlib.resources import files
 
 from ichatbio.agent_response import IChatBioAgentProcess
 from langgraph.prebuilt import ToolRuntime
@@ -115,12 +116,6 @@ async def find_occurrence_records(
 
 @functools.cache
 def get_system_prompt():
-    query_format_doc = (
-        importlib.resources.files()
-        .joinpath("..", "resources", "records_query_format.md")
-        .read_text()
-    )
-
     examples = {
         "Homo sapiens": LLMResponseModel(
             plan="The name Homo sapiens doesn't have authority specified, so I will search by genus and specificepithet instead of scientificname",
@@ -183,8 +178,12 @@ def get_system_prompt():
         ),
     }
 
+    query_format_doc = files().joinpath("..", "resources", "records_query_format.md").read_text()
+    tips_doc = files().joinpath("..", "resources", "occurrence_records_tips.md").read_text()
+
     return make_system_prompt(
         preamble="You translate user requests into parameters for the iDigBio record search API.",
         query_format_doc=query_format_doc,
+        tips=tips_doc,
         examples=examples,
     )

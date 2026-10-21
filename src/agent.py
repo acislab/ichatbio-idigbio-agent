@@ -1,4 +1,4 @@
-import importlib.resources
+from importlib.resources import files
 from typing import Any, override
 
 import dotenv
@@ -64,11 +64,7 @@ class IDigBioAgent(IChatBioAgent):
         )
 
     def __init__(self):
-        self.control_loop_prompt = (
-            importlib.resources.files()
-            .joinpath("resources", "control_loop_prompt.md")
-            .read_text()
-        )
+        self.control_loop_prompt = files().joinpath("resources", "control_loop_prompt.md").read_text()
 
     def _build_langchain_agent(self):
         return langchain.agents.create_agent(

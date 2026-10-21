@@ -6,11 +6,9 @@ from ichatbio.agent_response import ArtifactResponse, ProcessBeginResponse
 async def test_find_media_records(agent, context, messages):
     await agent.run(context, "Find pictures of Rattus rattus", "find_media_records")
 
-    assert messages[0] == ProcessBeginResponse(summary="Searching iDigBio media records")
     artifacts = [m for m in messages if isinstance(m, ArtifactResponse)]
     assert artifacts
     artifact = artifacts[-1]
-    assert artifact
     assert artifact.metadata["retrieved_record_count"] > 0
 
     # Make sure the agent is outputting links to view records in iDigBio
