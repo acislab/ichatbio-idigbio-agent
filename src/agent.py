@@ -69,7 +69,7 @@ class IDigBioAgent(IChatBioAgent):
         @after_model
         async def share_text_messages(state, runtime):
             message = state["messages"][-1]
-            if isinstance(message, AIMessage) and isinstance(message.content, str):
+            if isinstance(message, AIMessage) and isinstance(message.content, str) and message.content:
                 await current_context.get().reply(message.content)
 
         control_loop_prompt = files().joinpath("resources", "control_loop_prompt.md").read_text()
