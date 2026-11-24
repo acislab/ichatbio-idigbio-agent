@@ -138,7 +138,7 @@ def _is_empty(data):
     return len(data) == 0 if isinstance(data, Sized) else False
 
 
-IDIGBIO_SEARCH_API_BASE_URL = "https://idb-api24-prod.acis.ufl.edu"
+IDIGBIO_SEARCH_API_BASE_URL = "http://idb-api24-prod.acis.ufl.edu:19196"
 
 
 def query_idigbio_api(endpoint: str, params: dict) -> tuple[str, bool, dict | None]:
