@@ -79,7 +79,7 @@ async def count_occurrence_records(
 
         url_params = util.url_encode_params(json_params)
         full_summary_api_url = (
-            f"https://search.idigbio.org/v2/summary/top/records?{url_params}"
+            f"{util.IDIGBIO_SEARCH_API_BASE_URL}/v2/summary/top/records?{url_params}"
         )
 
         await process.log(

@@ -11,9 +11,6 @@ async def test_find_media_records(agent, context, messages):
     artifact = artifacts[-1]
     assert artifact.metadata["retrieved_record_count"] > 0
 
-    # Make sure the agent is outputting links to view records in iDigBio
-    assert "https://portal.idigbio.org/portal/mediarecords/" in str(messages)
-
     assert len(artifacts) == 1
 
 

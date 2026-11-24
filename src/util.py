@@ -138,6 +138,9 @@ def _is_empty(data):
     return len(data) == 0 if isinstance(data, Sized) else False
 
 
+IDIGBIO_SEARCH_API_BASE_URL = "https://idb-api24-prod.acis.ufl.edu"
+
+
 def query_idigbio_api(endpoint: str, params: dict) -> tuple[str, bool, dict | None]:
     params = cast(dict, sanitize_json(params))
     api_url = make_idigbio_api_url(endpoint)
@@ -152,26 +155,21 @@ def query_idigbio_api(endpoint: str, params: dict) -> tuple[str, bool, dict | No
 def query_idigbio_data_api(params) -> tuple[str, bool, dict]:
     sanitized_query = sanitize_json(params.get("rq", {}))
     api_params = {"rq": json.dumps(sanitized_query), "email": params.get("email", "")}
-    response = requests.post("https://api.idigbio.org/v2/download", data=api_params)
+    response = requests.post(f"{IDIGBIO_SEARCH_API_BASE_URL}/v2/download", data=api_params)
     code = (
         f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
     )
     return code, response.ok, response.json()
 
 
-def make_idigbio_portal_url(params: dict = None):
-    url_params = "" if params is None else "?" + url_encode_params(params)
-    return f"https://portal.idigbio.org/portal/search{url_params}"
-
-
 def make_idigbio_api_url(endpoint: str, params: dict = None) -> str:
     url_params = "" if params is None else "?" + url_encode_params(params)
-    return f"https://search.idigbio.org{endpoint}{url_params}"
+    return f"{IDIGBIO_SEARCH_API_BASE_URL}{endpoint}{url_params}"
 
 
 def make_idigbio_download_url(params: dict = None):
     url_params = "" if params is None else "?" + url_encode_params(params)
-    return f"https://api.idigbio.org/v2/download{url_params}"
+    return f"{IDIGBIO_SEARCH_API_BASE_URL}/v2/download{url_params}"
 
 
 TModel = TypeVar("TModel", bound=BaseModel)

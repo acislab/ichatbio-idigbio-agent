@@ -12,7 +12,6 @@ from tools.util import context_tool
 from util import (
     query_idigbio_api,
     make_idigbio_api_url,
-    make_idigbio_portal_url,
     AIGenerationException,
     generate_search_parameters,
     make_llm_response_model,
@@ -89,25 +88,17 @@ async def find_occurrence_records(
             f" {api_query_url}"
         )
 
-        portal_url = make_idigbio_portal_url(json_params)
         await process.log(
             f"[View {record_count} out of {matching_count} matching records]({api_query_url})"
-            f" | [Show in iDigBio portal]({portal_url})"
         )
 
         if record_count > 0:
-            await context.reply(
-                f"The records can be viewed in the iDigBio portal at {portal_url}. The portal shows the records in an"
-                f" interactive list and plots them on a map. The raw records returned returned by the API can be found"
-                f" at {api_query_url}"
-            )
             await process.create_artifact(
                 mimetype="application/json",
                 description=artifact_description,
                 uris=[api_query_url],
                 metadata={
                     "data_source": "iDigBio",
-                    "portal_url": portal_url,
                     "retrieved_record_count": record_count,
                     "total_matching_count": matching_count,
                 },
