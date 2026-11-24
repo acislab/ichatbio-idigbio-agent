@@ -2,7 +2,6 @@ import functools
 import http.client
 from importlib.resources import files
 
-import requests
 from ichatbio.agent_response import IChatBioAgentProcess
 from langgraph.prebuilt import ToolRuntime
 
@@ -129,12 +128,12 @@ async def count_occurrence_records(
 
 
 def _query_summary_api(query_url: str) -> (int, dict):
-    response = requests.get(query_url)
+    response = util.idigbio_http_client.get(query_url)
     item_count = response.json()["itemCount"]
     code = (
         f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
     )
-    return code, response.ok, item_count, response.json()
+    return code, response.is_success, item_count, response.json()
 
 
 FIELD_REPLACEMENTS = {

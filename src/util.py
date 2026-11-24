@@ -3,8 +3,8 @@ import json
 from contextvars import ContextVar
 from typing import Sized, Union, Type, Optional, Self, TypeVar, Callable, cast
 
+import httpx
 import instructor
-import requests
 from instructor import AsyncInstructor
 from instructor.core import InstructorRetryException
 from langchain_core.messages import BaseMessage, convert_to_openai_messages
@@ -140,26 +140,28 @@ def _is_empty(data):
 
 IDIGBIO_SEARCH_API_BASE_URL = "http://idb-api24-prod.acis.ufl.edu:19196"
 
+idigbio_http_client = httpx.Client(http1=False, http2=True, timeout=httpx.Timeout(120.0, connect=30.0))
+
 
 def query_idigbio_api(endpoint: str, params: dict) -> tuple[str, bool, dict | None]:
     params = cast(dict, sanitize_json(params))
     api_url = make_idigbio_api_url(endpoint)
-    response = requests.post(api_url, json=params)
+    response = idigbio_http_client.post(api_url, json=params)
     code = (
         f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
     )
-    data = response.json() if response.ok else None
-    return code, response.ok, data
+    data = response.json() if response.is_success else None
+    return code, response.is_success, data
 
 
 def query_idigbio_data_api(params) -> tuple[str, bool, dict]:
     sanitized_query = sanitize_json(params.get("rq", {}))
     api_params = {"rq": json.dumps(sanitized_query), "email": params.get("email", "")}
-    response = requests.post(f"{IDIGBIO_SEARCH_API_BASE_URL}/v2/download", data=api_params)
+    response = idigbio_http_client.post(f"{IDIGBIO_SEARCH_API_BASE_URL}/v2/download", data=api_params)
     code = (
         f"{response.status_code} {http.client.responses.get(response.status_code, '')}"
     )
-    return code, response.ok, response.json()
+    return code, response.is_success, response.json()
 
 
 def make_idigbio_api_url(endpoint: str, params: dict = None) -> str:
