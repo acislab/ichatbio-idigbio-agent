@@ -23,7 +23,7 @@ async def test_count_species(agent, context, messages):
     assert artifacts
     artifact = artifacts[-1]
     assert artifact.uris[0] == (
-        "http://idb-api24-prod.acis.ufl.edu:19196/v2/summary/top/records?"
+        "http://idb-proxy3.acis.ufl.edu/v2/summary/top/records?"
         "top_fields=%22scientificname%22&count=5000&rq=%7B%22class%22:%22Aves%22,%22country%22:%22Colombia%22,%22taxonrank%22:%22species%22%7D"
     )
     assert artifact.metadata["total_record_count"] > 0
@@ -39,7 +39,7 @@ async def test_two_top_fields(agent, context, messages):
     assert artifacts
     artifact = artifacts[-1]
     assert artifact.uris[0] == (
-        "http://idb-api24-prod.acis.ufl.edu:19196/v2/summary/top/records?top_fields=[%22stateprovince%22,%22scientificname%22]&count=5000&rq=%7B%22class%22:%22Aves%22,%22country%22:%22Australia%22%7D"
+        "http://idb-proxy3.acis.ufl.edu/v2/summary/top/records?top_fields=[%22stateprovince%22,%22scientificname%22]&count=5000&rq=%7B%22class%22:%22Aves%22,%22country%22:%22Australia%22%7D"
     )
     assert artifact.metadata["total_record_count"] > 0
     assert len(artifacts) == 1
@@ -53,7 +53,7 @@ async def test_remap_keyword_top_fields(agent, context, messages):
     assert artifacts
     artifact = artifacts[-1]
     assert artifact.uris[0] == (
-        "http://idb-api24-prod.acis.ufl.edu:19196/v2/summary/top/records?top_fields=%22collector.keyword%22&count=5000&rq=%7B%22class%22:%22Aves%22%7D"
+        "http://idb-proxy3.acis.ufl.edu/v2/summary/top/records?top_fields=%22collector.keyword%22&count=5000&rq=%7B%22class%22:%22Aves%22%7D"
     )
     assert artifact.metadata["total_record_count"] > 0
     assert len(artifacts) == 1

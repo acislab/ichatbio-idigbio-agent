@@ -12,8 +12,7 @@ dependencies = [
     "uvicorn>=0.34.3",
     "contextvars>=2.4",
     "langchain==1.4.6",
-    "langchain_openai==1.7.2",
-    "httpx[http2]>=0.28.1"
+    "langchain_openai==1.7.2"
 ]
 
 [dependency-groups]
